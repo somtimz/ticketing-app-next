@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { tickets, callers, categories, calls, users } from '@/lib/db/schema';
+import { tickets, callers, categories, calls, users, ticketStatusHistory } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { updateTicketStatusSchema, type UpdateTicketStatusInput } from '@/lib/validators';
+import { canModifyTicket } from '@/lib/rbac';
+import { APIError, handleAPIError, requireAuth } from '@/lib/api-error';
 import type { TicketWithRelations, CallWithCaller, ApiErrorResponse } from '@/types';
 
 // GET /api/tickets/[id] - Get ticket details with call history
@@ -174,5 +177,136 @@ export async function GET(
       { error: 'Failed to fetch ticket' },
       { status: 500 }
     );
+  }
+}
+
+// Valid status transitions
+// Note: Pending status is not yet in the database schema but included for future use
+const VALID_TRANSITIONS: Record<string, string[]> = {
+  'Open': ['In Progress'],
+  'In Progress': ['Resolved'], // Pending will be added when schema is updated
+  'Resolved': ['Open', 'Closed'],
+  'Closed': ['Open']
+};
+
+// PATCH /api/tickets/[id] - Update ticket status
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth();
+    requireAuth(session);
+
+    const { id } = await params;
+    const ticketId = Number.parseInt(id, 10);
+
+    if (Number.isNaN(ticketId)) {
+      throw new APIError(400, 'invalid_ticket_id', 'Invalid ticket ID');
+    }
+
+    const body = await req.json();
+
+    // Validate request body
+    const validatedData: UpdateTicketStatusInput = updateTicketStatusSchema.parse(body);
+
+    // Get current ticket
+    const currentTicketResult = await db
+      .select({
+        id: tickets.id,
+        status: tickets.status,
+        callerId: tickets.callerId,
+        assignedAgentId: tickets.assignedAgentId
+      })
+      .from(tickets)
+      .where(eq(tickets.id, ticketId))
+      .limit(1);
+
+    if (currentTicketResult.length === 0) {
+      throw new APIError(404, 'ticket_not_found', 'Ticket not found');
+    }
+
+    const currentTicket = currentTicketResult[0];
+    const currentStatus = currentTicket.status;
+    const newStatus = validatedData.status;
+
+    // Validate status transition
+    if (currentStatus !== newStatus) {
+      const allowedTransitions = VALID_TRANSITIONS[currentStatus];
+      if (!allowedTransitions || !allowedTransitions.includes(newStatus)) {
+        throw new APIError(
+          400,
+          'invalid_status_transition',
+          `Cannot transition from ${currentStatus} to ${newStatus}. Valid transitions: ${allowedTransitions.join(', ')}`
+        );
+      }
+    }
+
+    // Check permissions - user can modify ticket if:
+    // - Employee can only update their own tickets
+    // - Agents can update assigned tickets
+    // - TeamLeads can update any ticket
+    // - Admins can update any ticket
+    const hasPermission = canModifyTicket(
+      session,
+      currentTicket.callerId,
+      currentTicket.assignedAgentId
+    );
+
+    if (!hasPermission) {
+      throw new APIError(
+        403,
+        'forbidden',
+        'You do not have permission to update this ticket'
+      );
+    }
+
+    // Prepare update data with timestamp handling
+    const updateData: any = {
+      status: newStatus,
+      updatedAt: new Date()
+    };
+
+    // Set resolvedAt when status -> Resolved
+    if (newStatus === 'Resolved' && currentStatus !== 'Resolved') {
+      updateData.resolvedAt = new Date();
+    } else if (newStatus !== 'Resolved' && currentStatus === 'Resolved') {
+      // Clear resolvedAt if reopened
+      updateData.resolvedAt = null;
+    }
+
+    // Set closedAt when status -> Closed
+    if (newStatus === 'Closed' && currentStatus !== 'Closed') {
+      updateData.closedAt = new Date();
+    } else if (newStatus !== 'Closed' && currentStatus === 'Closed') {
+      // Clear closedAt if reopened
+      updateData.closedAt = null;
+    }
+
+    // Update ticket status
+    await db
+      .update(tickets)
+      .set(updateData)
+      .where(eq(tickets.id, ticketId));
+
+    // Log status change in history
+    await db.insert(ticketStatusHistory).values({
+      ticketId,
+      fromStatus: currentStatus,
+      toStatus: newStatus,
+      changedBy: Number.parseInt(session.user.id, 10),
+      notes: validatedData.notes || null
+    });
+
+    return NextResponse.json({
+      success: true,
+      ticketId,
+      previousStatus: currentStatus,
+      newStatus,
+      resolvedAt: updateData.resolvedAt,
+      closedAt: updateData.closedAt
+    });
+  } catch (error) {
+    return handleAPIError(error);
   }
 }
