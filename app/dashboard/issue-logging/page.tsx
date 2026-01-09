@@ -28,7 +28,16 @@ export default function IssueLoggingPage(): JSX.Element {
       }
     };
 
+    // Initial fetch
     void fetchTickets();
+
+    // Auto-refresh every 10 seconds
+    const intervalId = setInterval(() => {
+      void fetchTickets();
+    }, 10000);
+
+    // Cleanup interval on component unmount
+    return () => clearInterval(intervalId);
   }, []);
 
   const statusCounts: Partial<Record<TicketStatus, number>> = {

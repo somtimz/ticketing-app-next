@@ -38,7 +38,14 @@
       "Bash(npm view:*)",
       "Skill(superpowers:systematic-debugging)",
       "Bash(gh repo list:*)",
-      "Bash(git remote add:*)"
+      "Bash(git remote add:*)",
+      "Bash(where:*)",
+      "Bash(if:*)",
+      "Bash(then:*)",
+      "Bash(else:*)",
+      "Bash(fi:*)",
+      "Bash(npx drizzle-kit generate:*)",
+      "mcp__plugin_serena_serena__execute_shell_command"
     ]
   }
 }
