@@ -44,3 +44,6 @@ drizzle/
 
 # windows reserved names
 nul
+
+# git worktrees
+.worktrees/
