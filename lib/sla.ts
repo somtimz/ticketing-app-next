@@ -30,16 +30,15 @@ export function calculateSLADueDates(priority: Priority, createdAt: Date): {
   };
 }
 
-export function isSLABreached(dueDate: Date): boolean {
-  return new Date() > dueDate;
+export function isSLABreached(dueDate: Date, now: Date = new Date()): boolean {
+  return now > dueDate;
 }
 
-export function getSLAStatus(dueDate: Date): 'ok' | 'warning' | 'breached' {
-  const now = new Date();
+export function getSLAStatus(createdAt: Date, dueDate: Date, now: Date = new Date()): 'ok' | 'warning' | 'breached' {
   const timeUntilDue = dueDate.getTime() - now.getTime();
-  const totalWindow = dueDate.getTime() - (dueDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const totalWindow = dueDate.getTime() - createdAt.getTime();
 
-  if (timeUntilDue < 0) return 'breached';
+  if (timeUntilDue <= 0) return 'breached';
   if (timeUntilDue < totalWindow * 0.2) return 'warning';
   return 'ok';
 }
