@@ -8,8 +8,11 @@ export const createTicketSchema = z.object({
     .min(1, 'Description is required')
     .max(5000, 'Description is too long'),
   category: z.string().optional(),
-  priority: z.enum(['Low', 'Medium', 'High', 'Critical'], {
-    errorMap: () => ({ message: 'Priority must be Low, Medium, High, or Critical' })
+  impact: z.enum(['Low', 'Medium', 'High'], {
+    errorMap: () => ({ message: 'Impact must be Low, Medium, or High' })
+  }),
+  urgency: z.enum(['Low', 'Medium', 'High'], {
+    errorMap: () => ({ message: 'Urgency must be Low, Medium, or High' })
   }),
   callerName: z.string().min(1, 'Caller name is required'),
   callerEmail: z.string().email('Invalid email address').optional().or(z.literal('')),

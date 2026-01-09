@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { tickets, callers, categories, calls, users, employees } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { createTicketSchema, type CreateTicketInput } from '@/lib/validators';
+import { calculatePriority, calculateSLADueDates } from '@/lib/sla';
 import type { TicketWithRelations, ApiErrorResponse } from '@/types';
 
 // GET /api/tickets - List tickets
@@ -133,6 +134,7 @@ export async function POST(req: NextRequest) {
 
     // Find or create category
     let categoryId: number | null = null;
+    let defaultAgentId: number | null = null;
     if (validatedData.category) {
       const category = await db
         .select()
@@ -141,6 +143,8 @@ export async function POST(req: NextRequest) {
         .limit(1);
       if (category.length > 0) {
         categoryId = category[0].id;
+        // TODO: Add defaultAgentId to categories schema and use it here
+        // defaultAgentId = category[0].defaultAgentId;
       }
     }
 
@@ -186,6 +190,24 @@ export async function POST(req: NextRequest) {
       callerId = newCaller[0].id;
     }
 
+    // Calculate priority from impact and urgency
+    const priority = calculatePriority(validatedData.impact, validatedData.urgency);
+
+    // Calculate SLA due dates
+    const createdAt = new Date();
+    const slaDueDates = calculateSLADueDates(priority, createdAt);
+
+    // Determine initial status and assignment
+    let initialStatus = 'Open';
+    let assignedAgentId: number | null = null;
+
+    // Auto-assignment logic: if category has a default agent, assign to them
+    // TODO: After adding defaultAgentId to categories schema, uncomment this:
+    // if (defaultAgentId) {
+    //   assignedAgentId = defaultAgentId;
+    //   initialStatus = 'In Progress'; // Will be 'Assigned' after migration
+    // }
+
     // Create ticket
     const newTicket = await db
       .insert(tickets)
@@ -194,9 +216,14 @@ export async function POST(req: NextRequest) {
         title: validatedData.title,
         description: validatedData.description,
         categoryId,
-        priority: validatedData.priority,
+        impact: validatedData.impact,
+        urgency: validatedData.urgency,
+        priority,
+        status: initialStatus as any,
         callerId,
-        assignedAgentId: Number.parseInt(session.user.id, 10)
+        assignedAgentId,
+        slaFirstResponseDue: slaDueDates.firstResponseDue,
+        slaResolutionDue: slaDueDates.resolutionDue
       })
       .returning();
 
