@@ -7,7 +7,8 @@ export type {
   Ticket,
   Call,
   TicketStatusHistory,
-  AuditLog
+  AuditLog,
+  SlaPolicy
 } from '@/lib/db/schema';
 
 // Database insertion types (New* types from Drizzle)
@@ -17,15 +18,35 @@ export type {
   NewCaller,
   NewCategory,
   NewTicket,
-  NewCall
+  NewCall,
+  NewSlaPolicy
 } from '@/lib/db/schema';
+
+// SLA and Priority types (import and re-export from lib/sla.ts)
+import type { Priority, Impact, Urgency } from '@/lib/sla';
+export type { Priority, Impact, Urgency };
+
+// SLA utility types
+export interface SLAPolicy {
+  id: number;
+  priority: Priority;
+  firstResponseMinutes: number;
+  resolutionMinutes: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Ticket status type (matches current database enum)
+// TODO: Update to 'New' | 'Assigned' | 'InProgress' | 'Pending' | 'Resolved' | 'Closed' after database migration
+export type TicketStatus = 'Open' | 'In Progress' | 'Resolved' | 'Closed';
 
 // Form & Request types
 export interface CreateTicketRequest {
   title: string;
   description: string;
   category?: string;
-  priority: 'Low' | 'Medium' | 'High' | 'Critical';
+  impact: Impact;
+  urgency: Urgency;
   callerName: string;
   callerEmail?: string;
   callerPhone?: string;
@@ -33,7 +54,7 @@ export interface CreateTicketRequest {
 }
 
 export interface UpdateTicketStatusRequest {
-  status: 'Open' | 'In Progress' | 'Resolved' | 'Closed';
+  status: TicketStatus;
   notes?: string;
 }
 
@@ -73,12 +94,16 @@ export interface TicketWithRelations {
   ticketNumber: string;
   title: string;
   description: string;
-  priority: 'Low' | 'Medium' | 'High' | 'Critical';
-  status: 'Open' | 'In Progress' | 'Resolved' | 'Closed';
+  impact: Impact;
+  urgency: Urgency;
+  priority: Priority;
+  status: TicketStatus;
   createdAt: Date;
   updatedAt: Date;
   resolvedAt: Date | null;
   closedAt: Date | null;
+  slaFirstResponseDue: Date | null;
+  slaResolutionDue: Date | null;
   category: {
     id: number | null;
     name: string | null;
@@ -128,8 +153,10 @@ export interface NavItem {
 
 // Filter types
 export interface TicketFilters {
-  status?: 'Open' | 'In Progress' | 'Resolved' | 'Closed';
-  priority?: 'Low' | 'Medium' | 'High' | 'Critical';
+  status?: TicketStatus;
+  priority?: Priority;
+  impact?: Impact;
+  urgency?: Urgency;
   categoryId?: number;
   assignedAgentId?: number;
   callerSearch?: string;
@@ -152,7 +179,11 @@ export interface PaginatedResponse<T> {
 // Utility types
 export type WithRequired<T, K extends keyof T> = T & { [P in K]-?: T[P] };
 
-export type TicketStatus = 'Open' | 'In Progress' | 'Resolved' | 'Closed';
-export type TicketPriority = 'Low' | 'Medium' | 'High' | 'Critical';
+// Legacy type aliases for backward compatibility
+// @deprecated Use Priority instead
+export type TicketPriority = Priority;
+
 export type CallType = 'inbound' | 'outbound' | 'email';
-export type UserRole = 'agent' | 'admin';
+
+// User roles (matches database enum)
+export type UserRole = 'Employee' | 'Agent' | 'TeamLead' | 'Admin';
