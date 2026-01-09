@@ -257,7 +257,8 @@ git commit -m "feat: add SLA calculation utilities with tests"
 ## Task 4: Create Role-Based Access Middleware
 
 **Files:**
-- Create: `lib/rbac.ts`
+- Create: `lib/rbac.ts` - Role hierarchy and permission utilities
+- Create: `lib/api-error.ts` - API error handling and authorization middleware
 
 **Step 1: Create RBAC utilities**
 
@@ -268,6 +269,10 @@ import type { Session } from 'next-auth';
 
 export type UserRole = 'Employee' | 'Agent' | 'TeamLead' | 'Admin';
 
+/**
+ * Role hierarchy for permission inheritance
+ * Higher number = more privileges
+ */
 export const ROLE_HIERARCHY: Record<UserRole, number> = {
   Employee: 0,
   Agent: 1,
@@ -275,16 +280,29 @@ export const ROLE_HIERARCHY: Record<UserRole, number> = {
   Admin: 3
 };
 
+/**
+ * Check if a session's user has at least the specified role level
+ * Uses role hierarchy, so Admin can access Agent-level resources, etc.
+ */
 export function hasRole(session: Session | null, role: UserRole): boolean {
   if (!session?.user) return false;
   const userRole = session.user.role as UserRole;
   return ROLE_HIERARCHY[userRole] >= ROLE_HIERARCHY[role];
 }
 
+/**
+ * Check if a session's user has any of the specified roles
+ */
 export function hasAnyRole(session: Session | null, roles: UserRole[]): boolean {
   return roles.some(role => hasRole(session, role));
 }
 
+/**
+ * Check if user can modify a specific ticket
+ * - Employees can only modify their own tickets
+ * - Agents can modify tickets assigned to them
+ * - TeamLeads and Admins can modify any ticket
+ */
 export function canModifyTicket(
   session: Session | null,
   ticketAuthorId: number,
@@ -306,15 +324,59 @@ export function canModifyTicket(
   return false;
 }
 
+/**
+ * Check if user can assign tickets to agents
+ * - Agent, TeamLead, Admin
+ */
 export function canAssignTickets(session: Session | null): boolean {
+  return hasRole(session, 'Agent');
+}
+
+/**
+ * Check if user can resolve tickets
+ * - Agent, TeamLead, Admin
+ */
+export function canResolveTickets(session: Session | null): boolean {
+  return hasRole(session, 'Agent');
+}
+
+/**
+ * Check if user can view all tickets (not just their own)
+ * - TeamLead, Admin
+ */
+export function canViewAllTickets(session: Session | null): boolean {
   return hasRole(session, 'TeamLead');
 }
 
+/**
+ * Check if user can manage users (create, edit, delete)
+ * - Admin only
+ */
 export function canManageUsers(session: Session | null): boolean {
   return hasRole(session, 'Admin');
 }
 
+/**
+ * Check if user can manage categories
+ * - Admin only
+ */
 export function canManageCategories(session: Session | null): boolean {
+  return hasRole(session, 'Admin');
+}
+
+/**
+ * Check if user can view analytics and reports
+ * - TeamLead, Admin
+ */
+export function canViewAnalytics(session: Session | null): boolean {
+  return hasRole(session, 'TeamLead');
+}
+
+/**
+ * Check if user can manage SLA policies
+ * - Admin only
+ */
+export function canManageSLAPolicies(session: Session | null): boolean {
   return hasRole(session, 'Admin');
 }
 ```
@@ -325,7 +387,12 @@ Create `lib/api-error.ts`:
 
 ```typescript
 import { NextResponse } from 'next/server';
+import type { Session } from 'next-auth';
+import { UserRole, hasRole } from './rbac';
 
+/**
+ * Custom API Error class for structured error responses
+ */
 export class APIError extends Error {
   constructor(
     public status: number,
@@ -333,14 +400,26 @@ export class APIError extends Error {
     message: string
   ) {
     super(message);
+    this.name = 'APIError';
   }
 }
 
+/**
+ * Handle errors and return appropriate API responses
+ */
 export function handleAPIError(error: unknown): NextResponse {
   if (error instanceof APIError) {
     return NextResponse.json(
       { error: error.code, message: error.message },
       { status: error.status }
+    );
+  }
+
+  // Handle Zod validation errors
+  if (error instanceof Error && error.name === 'ZodError') {
+    return NextResponse.json(
+      { error: 'validation_error', message: 'Invalid input data' },
+      { status: 400 }
     );
   }
 
@@ -351,16 +430,45 @@ export function handleAPIError(error: unknown): NextResponse {
   );
 }
 
+/**
+ * Require user to be authenticated
+ * @throws APIError with 401 status if not authenticated
+ */
 export function requireAuth(session: Session | null): void {
   if (!session?.user) {
     throw new APIError(401, 'unauthorized', 'You must be logged in');
   }
 }
 
+/**
+ * Require user to have at least the specified role level
+ * @throws APIError with 401 status if not authenticated
+ * @throws APIError with 403 status if not authorized
+ */
 export function requireRole(session: Session | null, role: UserRole): void {
   requireAuth(session);
   if (!hasRole(session, role)) {
-    throw new APIError(403, 'forbidden', 'You do not have permission to perform this action');
+    throw new APIError(
+      403,
+      'forbidden',
+      'You do not have permission to perform this action'
+    );
+  }
+}
+
+/**
+ * Require user to have any of the specified roles
+ * @throws APIError with 401 status if not authenticated
+ * @throws APIError with 403 status if not authorized
+ */
+export function requireAnyRole(session: Session | null, roles: UserRole[]): void {
+  requireAuth(session);
+  if (!roles.some(role => hasRole(session, role))) {
+    throw new APIError(
+      403,
+      'forbidden',
+      'You do not have permission to perform this action'
+    );
   }
 }
 ```
@@ -371,58 +479,705 @@ Create `lib/rbac.test.ts`:
 
 ```typescript
 import { describe, it, expect } from 'vitest';
-import { hasRole, canModifyTicket, canAssignTickets } from './rbac';
+import {
+  hasRole,
+  hasAnyRole,
+  canModifyTicket,
+  canAssignTickets,
+  canResolveTickets,
+  canViewAllTickets,
+  canManageUsers,
+  canManageCategories,
+  canViewAnalytics,
+  canManageSLAPolicies,
+  ROLE_HIERARCHY,
+  type UserRole
+} from './rbac';
 import type { Session } from 'next-auth';
 
-const createSession = (role: string): Session => ({
-  user: { id: '1', email: 'test@test.com', role, name: 'Test' },
+/**
+ * Helper to create a mock session with a specific role
+ */
+const createSession = (role: UserRole, userId: string = '1'): Session => ({
+  user: { id: userId, email: 'test@test.com', role, name: 'Test' },
   expires: new Date(Date.now() + 3600000).toISOString()
 });
 
-describe('hasRole', () => {
-  it('returns true when user has required role', () => {
-    expect(hasRole(createSession('Admin'), 'Admin')).toBe(true);
-    expect(hasRole(createSession('TeamLead'), 'Agent')).toBe(true);
+describe('ROLE_HIERARCHY', () => {
+  it('has correct hierarchy values', () => {
+    expect(ROLE_HIERARCHY.Employee).toBe(0);
+    expect(ROLE_HIERARCHY.Agent).toBe(1);
+    expect(ROLE_HIERARCHY.TeamLead).toBe(2);
+    expect(ROLE_HIERARCHY.Admin).toBe(3);
   });
 
-  it('returns false when user lacks required role', () => {
-    expect(hasRole(createSession('Employee'), 'Agent')).toBe(false);
+  it('has ascending privilege levels', () => {
+    expect(ROLE_HIERARCHY.Employee).toBeLessThan(ROLE_HIERARCHY.Agent);
+    expect(ROLE_HIERARCHY.Agent).toBeLessThan(ROLE_HIERARCHY.TeamLead);
+    expect(ROLE_HIERARCHY.TeamLead).toBeLessThan(ROLE_HIERARCHY.Admin);
+  });
+});
+
+describe('hasRole', () => {
+  describe('with Admin role', () => {
+    const session = createSession('Admin');
+
+    it('returns true for Admin role', () => {
+      expect(hasRole(session, 'Admin')).toBe(true);
+    });
+
+    it('returns true for TeamLead role (inheritance)', () => {
+      expect(hasRole(session, 'TeamLead')).toBe(true);
+    });
+
+    it('returns true for Agent role (inheritance)', () => {
+      expect(hasRole(session, 'Agent')).toBe(true);
+    });
+
+    it('returns true for Employee role (inheritance)', () => {
+      expect(hasRole(session, 'Employee')).toBe(true);
+    });
+  });
+
+  describe('with TeamLead role', () => {
+    const session = createSession('TeamLead');
+
+    it('returns false for Admin role', () => {
+      expect(hasRole(session, 'Admin')).toBe(false);
+    });
+
+    it('returns true for TeamLead role', () => {
+      expect(hasRole(session, 'TeamLead')).toBe(true);
+    });
+
+    it('returns true for Agent role (inheritance)', () => {
+      expect(hasRole(session, 'Agent')).toBe(true);
+    });
+
+    it('returns true for Employee role (inheritance)', () => {
+      expect(hasRole(session, 'Employee')).toBe(true);
+    });
+  });
+
+  describe('with Agent role', () => {
+    const session = createSession('Agent');
+
+    it('returns false for Admin role', () => {
+      expect(hasRole(session, 'Admin')).toBe(false);
+    });
+
+    it('returns false for TeamLead role', () => {
+      expect(hasRole(session, 'TeamLead')).toBe(false);
+    });
+
+    it('returns true for Agent role', () => {
+      expect(hasRole(session, 'Agent')).toBe(true);
+    });
+
+    it('returns true for Employee role (inheritance)', () => {
+      expect(hasRole(session, 'Employee')).toBe(true);
+    });
+  });
+
+  describe('with Employee role', () => {
+    const session = createSession('Employee');
+
+    it('returns false for Admin role', () => {
+      expect(hasRole(session, 'Admin')).toBe(false);
+    });
+
+    it('returns false for TeamLead role', () => {
+      expect(hasRole(session, 'TeamLead')).toBe(false);
+    });
+
+    it('returns false for Agent role', () => {
+      expect(hasRole(session, 'Agent')).toBe(false);
+    });
+
+    it('returns true for Employee role', () => {
+      expect(hasRole(session, 'Employee')).toBe(true);
+    });
+  });
+
+  describe('with no session', () => {
+    it('returns false for any role', () => {
+      expect(hasRole(null, 'Employee')).toBe(false);
+      expect(hasRole(null, 'Agent')).toBe(false);
+      expect(hasRole(null, 'TeamLead')).toBe(false);
+      expect(hasRole(null, 'Admin')).toBe(false);
+    });
+  });
+
+  describe('with session but no user', () => {
+    const session: Session = {
+      expires: new Date(Date.now() + 3600000).toISOString(),
+      user: undefined as any
+    };
+
+    it('returns false for any role', () => {
+      expect(hasRole(session, 'Employee')).toBe(false);
+      expect(hasRole(session, 'Admin')).toBe(false);
+    });
+  });
+});
+
+describe('hasAnyRole', () => {
+  it('returns true when user has one of the required roles', () => {
+    expect(hasAnyRole(createSession('Agent'), ['Admin', 'TeamLead'])).toBe(false);
+    expect(hasAnyRole(createSession('Agent'), ['Employee', 'Agent'])).toBe(true);
+  });
+
+  it('returns true when user has multiple required roles', () => {
+    expect(hasAnyRole(createSession('Admin'), ['Agent', 'TeamLead'])).toBe(true);
+  });
+
+  it('returns false when user has none of the required roles', () => {
+    expect(hasAnyRole(createSession('Employee'), ['Agent', 'TeamLead', 'Admin'])).toBe(false);
   });
 
   it('returns false for no session', () => {
-    expect(hasRole(null, 'Employee')).toBe(false);
+    expect(hasAnyRole(null, ['Employee'])).toBe(false);
+  });
+
+  it('handles empty role array', () => {
+    expect(hasAnyRole(createSession('Admin'), [])).toBe(false);
   });
 });
 
 describe('canModifyTicket', () => {
-  it('allows employees to modify own tickets', () => {
-    expect(canModifyTicket(createSession('Employee'), 1, null)).toBe(true);
+  it('allows employees to modify their own tickets', () => {
+    expect(canModifyTicket(createSession('Employee', '1'), 1, null)).toBe(true);
   });
 
   it('denies employees modifying others tickets', () => {
-    expect(canModifyTicket(createSession('Employee'), 2, null)).toBe(false);
+    expect(canModifyTicket(createSession('Employee', '1'), 2, null)).toBe(false);
   });
 
   it('allows agents to modify assigned tickets', () => {
-    expect(canModifyTicket(createSession('Agent'), 2, 1)).toBe(true);
+    expect(canModifyTicket(createSession('Agent', '1'), 2, 1)).toBe(true);
+  });
+
+  it('denies agents modifying unassigned tickets', () => {
+    expect(canModifyTicket(createSession('Agent', '1'), 2, null)).toBe(false);
+  });
+
+  it('denies agents modifying tickets assigned to others', () => {
+    expect(canModifyTicket(createSession('Agent', '1'), 2, 3)).toBe(false);
   });
 
   it('allows team leads to modify any ticket', () => {
-    expect(canModifyTicket(createSession('TeamLead'), 999, null)).toBe(true);
+    expect(canModifyTicket(createSession('TeamLead'), 999, 999)).toBe(true);
+  });
+
+  it('allows admins to modify any ticket', () => {
+    expect(canModifyTicket(createSession('Admin'), 999, 999)).toBe(true);
+  });
+
+  it('returns false for no session', () => {
+    expect(canModifyTicket(null, 1, null)).toBe(false);
+  });
+});
+
+describe('canAssignTickets', () => {
+  it('allows agents to assign tickets', () => {
+    expect(canAssignTickets(createSession('Agent'))).toBe(true);
+  });
+
+  it('allows team leads to assign tickets', () => {
+    expect(canAssignTickets(createSession('TeamLead'))).toBe(true);
+  });
+
+  it('allows admins to assign tickets', () => {
+    expect(canAssignTickets(createSession('Admin'))).toBe(true);
+  });
+
+  it('denies employees from assigning tickets', () => {
+    expect(canAssignTickets(createSession('Employee'))).toBe(false);
+  });
+
+  it('returns false for no session', () => {
+    expect(canAssignTickets(null)).toBe(false);
+  });
+});
+
+describe('canResolveTickets', () => {
+  it('allows agents to resolve tickets', () => {
+    expect(canResolveTickets(createSession('Agent'))).toBe(true);
+  });
+
+  it('allows team leads to resolve tickets', () => {
+    expect(canResolveTickets(createSession('TeamLead'))).toBe(true);
+  });
+
+  it('allows admins to resolve tickets', () => {
+    expect(canResolveTickets(createSession('Admin'))).toBe(true);
+  });
+
+  it('denies employees from resolving tickets', () => {
+    expect(canResolveTickets(createSession('Employee'))).toBe(false);
+  });
+
+  it('returns false for no session', () => {
+    expect(canResolveTickets(null)).toBe(false);
+  });
+});
+
+describe('canViewAllTickets', () => {
+  it('allows team leads to view all tickets', () => {
+    expect(canViewAllTickets(createSession('TeamLead'))).toBe(true);
+  });
+
+  it('allows admins to view all tickets', () => {
+    expect(canViewAllTickets(createSession('Admin'))).toBe(true);
+  });
+
+  it('denies agents from viewing all tickets', () => {
+    expect(canViewAllTickets(createSession('Agent'))).toBe(false);
+  });
+
+  it('denies employees from viewing all tickets', () => {
+    expect(canViewAllTickets(createSession('Employee'))).toBe(false);
+  });
+
+  it('returns false for no session', () => {
+    expect(canViewAllTickets(null)).toBe(false);
+  });
+});
+
+describe('canManageUsers', () => {
+  it('allows admins to manage users', () => {
+    expect(canManageUsers(createSession('Admin'))).toBe(true);
+  });
+
+  it('denies team leads from managing users', () => {
+    expect(canManageUsers(createSession('TeamLead'))).toBe(false);
+  });
+
+  it('denies agents from managing users', () => {
+    expect(canManageUsers(createSession('Agent'))).toBe(false);
+  });
+
+  it('denies employees from managing users', () => {
+    expect(canManageUsers(createSession('Employee'))).toBe(false);
+  });
+
+  it('returns false for no session', () => {
+    expect(canManageUsers(null)).toBe(false);
+  });
+});
+
+describe('canManageCategories', () => {
+  it('allows admins to manage categories', () => {
+    expect(canManageCategories(createSession('Admin'))).toBe(true);
+  });
+
+  it('denies team leads from managing categories', () => {
+    expect(canManageCategories(createSession('TeamLead'))).toBe(false);
+  });
+
+  it('denies agents from managing categories', () => {
+    expect(canManageCategories(createSession('Agent'))).toBe(false);
+  });
+
+  it('denies employees from managing categories', () => {
+    expect(canManageCategories(createSession('Employee'))).toBe(false);
+  });
+
+  it('returns false for no session', () => {
+    expect(canManageCategories(null)).toBe(false);
+  });
+});
+
+describe('canViewAnalytics', () => {
+  it('allows team leads to view analytics', () => {
+    expect(canViewAnalytics(createSession('TeamLead'))).toBe(true);
+  });
+
+  it('allows admins to view analytics', () => {
+    expect(canViewAnalytics(createSession('Admin'))).toBe(true);
+  });
+
+  it('denies agents from viewing analytics', () => {
+    expect(canViewAnalytics(createSession('Agent'))).toBe(false);
+  });
+
+  it('denies employees from viewing analytics', () => {
+    expect(canViewAnalytics(createSession('Employee'))).toBe(false);
+  });
+
+  it('returns false for no session', () => {
+    expect(canViewAnalytics(null)).toBe(false);
+  });
+});
+
+describe('canManageSLAPolicies', () => {
+  it('allows admins to manage SLA policies', () => {
+    expect(canManageSLAPolicies(createSession('Admin'))).toBe(true);
+  });
+
+  it('denies team leads from managing SLA policies', () => {
+    expect(canManageSLAPolicies(createSession('TeamLead'))).toBe(false);
+  });
+
+  it('denies agents from managing SLA policies', () => {
+    expect(canManageSLAPolicies(createSession('Agent'))).toBe(false);
+  });
+
+  it('denies employees from managing SLA policies', () => {
+    expect(canManageSLAPolicies(createSession('Employee'))).toBe(false);
+  });
+
+  it('returns false for no session', () => {
+    expect(canManageSLAPolicies(null)).toBe(false);
+  });
+});
+
+describe('permission matrix', () => {
+  it('Employee has no management permissions', () => {
+    const employee = createSession('Employee');
+    expect(canAssignTickets(employee)).toBe(false);
+    expect(canResolveTickets(employee)).toBe(false);
+    expect(canViewAllTickets(employee)).toBe(false);
+    expect(canManageUsers(employee)).toBe(false);
+    expect(canManageCategories(employee)).toBe(false);
+    expect(canViewAnalytics(employee)).toBe(false);
+    expect(canManageSLAPolicies(employee)).toBe(false);
+  });
+
+  it('Agent can assign and resolve tickets', () => {
+    const agent = createSession('Agent');
+    expect(canAssignTickets(agent)).toBe(true);
+    expect(canResolveTickets(agent)).toBe(true);
+    expect(canViewAllTickets(agent)).toBe(false);
+    expect(canManageUsers(agent)).toBe(false);
+    expect(canManageCategories(agent)).toBe(false);
+    expect(canViewAnalytics(agent)).toBe(false);
+    expect(canManageSLAPolicies(agent)).toBe(false);
+  });
+
+  it('TeamLead has broader permissions', () => {
+    const teamLead = createSession('TeamLead');
+    expect(canAssignTickets(teamLead)).toBe(true);
+    expect(canResolveTickets(teamLead)).toBe(true);
+    expect(canViewAllTickets(teamLead)).toBe(true);
+    expect(canManageUsers(teamLead)).toBe(false);
+    expect(canManageCategories(teamLead)).toBe(false);
+    expect(canViewAnalytics(teamLead)).toBe(true);
+    expect(canManageSLAPolicies(teamLead)).toBe(false);
+  });
+
+  it('Admin has all permissions', () => {
+    const admin = createSession('Admin');
+    expect(canAssignTickets(admin)).toBe(true);
+    expect(canResolveTickets(admin)).toBe(true);
+    expect(canViewAllTickets(admin)).toBe(true);
+    expect(canManageUsers(admin)).toBe(true);
+    expect(canManageCategories(admin)).toBe(true);
+    expect(canViewAnalytics(admin)).toBe(true);
+    expect(canManageSLAPolicies(admin)).toBe(true);
   });
 });
 ```
 
-**Step 4: Run tests**
+**Step 4: Create tests for API error handling**
+
+Create `lib/api-error.test.ts`:
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import {
+  APIError,
+  handleAPIError,
+  requireAuth,
+  requireRole,
+  requireAnyRole
+} from './api-error';
+import type { Session, UserRole } from './rbac';
+
+const createSession = (role: UserRole): Session => ({
+  user: { id: '1', email: 'test@test.com', role, name: 'Test' },
+  expires: new Date(Date.now() + 3600000).toISOString()
+});
+
+describe('APIError', () => {
+  it('creates error with status, code, and message', () => {
+    const error = new APIError(404, 'not_found', 'Resource not found');
+    expect(error.status).toBe(404);
+    expect(error.code).toBe('not_found');
+    expect(error.message).toBe('Resource not found');
+    expect(error.name).toBe('APIError');
+  });
+
+  it('is instance of Error', () => {
+    const error = new APIError(500, 'server_error', 'Something went wrong');
+    expect(error instanceof Error).toBe(true);
+  });
+});
+
+describe('handleAPIError', () => {
+  it('handles APIError with correct status and response', () => {
+    const error = new APIError(404, 'not_found', 'Ticket not found');
+    const response = handleAPIError(error);
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get('content-type')).toBe('application/json');
+  });
+
+  it('includes error code and message in APIError response', async () => {
+    const error = new APIError(403, 'forbidden', 'Access denied');
+    const response = handleAPIError(error);
+    const body = await response.json();
+
+    expect(body).toEqual({
+      error: 'forbidden',
+      message: 'Access denied'
+    });
+  });
+
+  it('handles generic Error as internal server error', async () => {
+    const error = new Error('Unexpected error');
+    const response = handleAPIError(error);
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body).toEqual({
+      error: 'internal_error',
+      message: 'An unexpected error occurred'
+    });
+  });
+
+  it('handles unknown errors as internal server error', async () => {
+    const response = handleAPIError('string error');
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body).toEqual({
+      error: 'internal_error',
+      message: 'An unexpected error occurred'
+    });
+  });
+
+  it('handles null error', async () => {
+    const response = handleAPIError(null);
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body).toEqual({
+      error: 'internal_error',
+      message: 'An unexpected error occurred'
+    });
+  });
+});
+
+describe('requireAuth', () => {
+  it('does not throw when session has user', () => {
+    const session = createSession('Admin');
+    expect(() => requireAuth(session)).not.toThrow();
+  });
+
+  it('throws APIError when session is null', () => {
+    expect(() => requireAuth(null)).toThrow(APIError);
+  });
+
+  it('throws 401 error when session is null', () => {
+    try {
+      requireAuth(null);
+      expect.fail('Should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(APIError);
+      if (error instanceof APIError) {
+        expect(error.status).toBe(401);
+        expect(error.code).toBe('unauthorized');
+        expect(error.message).toBe('You must be logged in');
+      }
+    }
+  });
+
+  it('throws APIError when session has no user', () => {
+    const session: Session = {
+      expires: new Date(Date.now() + 3600000).toISOString(),
+      user: undefined as any
+    };
+
+    expect(() => requireAuth(session)).toThrow(APIError);
+  });
+});
+
+describe('requireRole', () => {
+  describe('with Admin role', () => {
+    const session = createSession('Admin');
+
+    it('does not throw for Admin requirement', () => {
+      expect(() => requireRole(session, 'Admin')).not.toThrow();
+    });
+
+    it('does not throw for TeamLead requirement (inheritance)', () => {
+      expect(() => requireRole(session, 'TeamLead')).not.toThrow();
+    });
+
+    it('does not throw for Agent requirement (inheritance)', () => {
+      expect(() => requireRole(session, 'Agent')).not.toThrow();
+    });
+
+    it('does not throw for Employee requirement (inheritance)', () => {
+      expect(() => requireRole(session, 'Employee')).not.toThrow();
+    });
+  });
+
+  describe('with TeamLead role', () => {
+    const session = createSession('TeamLead');
+
+    it('throws 403 for Admin requirement', () => {
+      try {
+        requireRole(session, 'Admin');
+        expect.fail('Should have thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(APIError);
+        if (error instanceof APIError) {
+          expect(error.status).toBe(403);
+          expect(error.code).toBe('forbidden');
+        }
+      }
+    });
+
+    it('does not throw for TeamLead requirement', () => {
+      expect(() => requireRole(session, 'TeamLead')).not.toThrow();
+    });
+
+    it('does not throw for Agent requirement', () => {
+      expect(() => requireRole(session, 'Agent')).not.toThrow();
+    });
+
+    it('does not throw for Employee requirement', () => {
+      expect(() => requireRole(session, 'Employee')).not.toThrow();
+    });
+  });
+
+  describe('with Agent role', () => {
+    const session = createSession('Agent');
+
+    it('throws 403 for TeamLead requirement', () => {
+      try {
+        requireRole(session, 'TeamLead');
+        expect.fail('Should have thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(APIError);
+        if (error instanceof APIError) {
+          expect(error.status).toBe(403);
+        }
+      }
+    });
+
+    it('does not throw for Agent requirement', () => {
+      expect(() => requireRole(session, 'Agent')).not.toThrow();
+    });
+  });
+
+  describe('with Employee role', () => {
+    const session = createSession('Employee');
+
+    it('throws 403 for Agent requirement', () => {
+      try {
+        requireRole(session, 'Agent');
+        expect.fail('Should have thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(APIError);
+        if (error instanceof APIError) {
+          expect(error.status).toBe(403);
+        }
+      }
+    });
+
+    it('does not throw for Employee requirement', () => {
+      expect(() => requireRole(session, 'Employee')).not.toThrow();
+    });
+  });
+
+  describe('with no session', () => {
+    it('throws 401 before checking role', () => {
+      try {
+        requireRole(null, 'Employee');
+        expect.fail('Should have thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(APIError);
+        if (error instanceof APIError) {
+          expect(error.status).toBe(401);
+          expect(error.code).toBe('unauthorized');
+        }
+      }
+    });
+  });
+});
+
+describe('requireAnyRole', () => {
+  it('does not throw when user has one of the required roles', () => {
+    const session = createSession('Agent');
+    expect(() => requireAnyRole(session, ['Employee', 'Agent'])).not.toThrow();
+  });
+
+  it('does not throw when user has higher role', () => {
+    const session = createSession('Admin');
+    expect(() => requireAnyRole(session, ['Employee', 'Agent'])).not.toThrow();
+  });
+
+  it('throws 403 when user has none of the required roles', () => {
+    const session = createSession('Employee');
+    try {
+      requireAnyRole(session, ['Agent', 'TeamLead', 'Admin']);
+      expect.fail('Should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(APIError);
+      if (error instanceof APIError) {
+        expect(error.status).toBe(403);
+        expect(error.code).toBe('forbidden');
+      }
+    }
+  });
+
+  it('throws 401 for no session', () => {
+    try {
+      requireAnyRole(null, ['Employee']);
+      expect.fail('Should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(APIError);
+      if (error instanceof APIError) {
+        expect(error.status).toBe(401);
+      }
+    }
+  });
+
+  it('handles empty role array', () => {
+    const session = createSession('Admin');
+    try {
+      requireAnyRole(session, []);
+      expect.fail('Should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(APIError);
+      if (error instanceof APIError) {
+        expect(error.status).toBe(403);
+      }
+    }
+  });
+
+  it('allows multiple role options', () => {
+    const session = createSession('TeamLead');
+    expect(() => requireAnyRole(session, ['Admin', 'Agent'])).not.toThrow();
+  });
+});
+```
+
+**Step 5: Run tests**
 
 ```bash
 npm test
 ```
 
-**Step 5: Commit**
+Expected: All tests pass (both rbac and api-error test suites)
+
+**Step 6: Commit**
 
 ```bash
-git add lib/rbac.ts lib/api-error.ts lib/rbac.test.ts
+git add lib/rbac.ts lib/api-error.ts lib/rbac.test.ts lib/api-error.test.ts
 git commit -m "feat: add role-based access control utilities"
 ```
 
