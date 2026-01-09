@@ -19,19 +19,26 @@
     {
       "idx": 2,
       "version": "6",
+      "when": 1767993171449,
+      "tag": "0001_nebulous_maginty",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
       "when": 1767983490409,
       "tag": "0001_early_fenris",
       "breakpoints": true
     },
     {
-      "idx": 3,
+      "idx": 4,
       "version": "6",
       "when": 1767983519936,
       "tag": "0002_real_vulcan",
       "breakpoints": true
     },
     {
-      "idx": 4,
+      "idx": 5,
       "version": "6",
       "when": 1767993564887,
       "tag": "0003_curly_madame_web",

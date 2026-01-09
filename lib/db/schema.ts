@@ -83,6 +83,8 @@ export const categories = sqliteTable('categories', {
     .notNull()
     .default(sql`(unixepoch())`),
   updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`)
 });
 
 // SLA Policies table
@@ -125,6 +127,7 @@ export const tickets = sqliteTable('tickets', {
   }),
   impact: text('impact', { enum: ['Low', 'Medium', 'High'] }).notNull(),
   urgency: text('urgency', { enum: ['Low', 'Medium', 'High'] }).notNull(),
+  resolution: text('resolution'),
   slaFirstResponseDue: integer('sla_first_response_due', { mode: 'timestamp' }),
   slaResolutionDue: integer('sla_resolution_due', { mode: 'timestamp' }),
   resolvedAt: integer('resolved_at', { mode: 'timestamp' }),
@@ -247,6 +250,8 @@ export type Caller = typeof callers.$inferSelect;
 export type NewCaller = typeof callers.$inferInsert;
 export type Category = typeof categories.$inferSelect;
 export type NewCategory = typeof categories.$inferInsert;
+export type SLAPolicy = typeof slaPolicies.$inferSelect;
+export type NewSLAPolicy = typeof slaPolicies.$inferInsert;
 export type Ticket = typeof tickets.$inferSelect;
 export type NewTicket = typeof tickets.$inferInsert;
 export type Call = typeof calls.$inferSelect;
@@ -255,8 +260,6 @@ export type TicketStatusHistory = typeof ticketStatusHistory.$inferSelect;
 export type NewTicketStatusHistory = typeof ticketStatusHistory.$inferInsert;
 export type AuditLog = typeof auditLog.$inferSelect;
 export type NewAuditLog = typeof auditLog.$inferInsert;
-export type SLAPolicy = typeof slaPolicies.$inferSelect;
-export type NewSLAPolicy = typeof slaPolicies.$inferInsert;
 export type Comment = typeof comments.$inferSelect;
 export type NewComment = typeof comments.$inferInsert;
 export type KnowledgeBaseArticle = typeof knowledgeBaseArticles.$inferSelect;
