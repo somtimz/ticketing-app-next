@@ -22,13 +22,6 @@
       "when": 1767983519936,
       "tag": "0002_real_vulcan",
       "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1767993564887,
-      "tag": "0003_curly_madame_web",
-      "breakpoints": true
     }
   ]
 }

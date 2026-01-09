@@ -82,6 +82,20 @@ export const categories = sqliteTable('categories', {
   updatedAt: integer('updated_at', { mode: 'timestamp' })
 });
 
+// SLA Policies table
+export const slaPolicies = sqliteTable('sla_policies', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  priority: text('priority', { enum: ['P1', 'P2', 'P3', 'P4'] }).notNull().unique(),
+  firstResponseMinutes: integer('first_response_minutes').notNull(),
+  resolutionMinutes: integer('resolution_minutes').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`)
+});
+
 // Tickets table
 export const tickets = sqliteTable('tickets', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -106,11 +120,10 @@ export const tickets = sqliteTable('tickets', {
   createdBy: integer('created_by').references(() => users.id, {
     onDelete: 'set null'
   }),
-  impact: text('impact', { enum: ['Low', 'Medium', 'High'] }),
-  urgency: text('urgency', { enum: ['Low', 'Medium', 'High'] }),
+  impact: text('impact', { enum: ['Low', 'Medium', 'High'] }).notNull(),
+  urgency: text('urgency', { enum: ['Low', 'Medium', 'High'] }).notNull(),
   slaFirstResponseDue: integer('sla_first_response_due', { mode: 'timestamp' }),
   slaResolutionDue: integer('sla_resolution_due', { mode: 'timestamp' }),
-  resolutionNotes: text('resolution_notes'),
   resolvedAt: integer('resolved_at', { mode: 'timestamp' }),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
@@ -175,21 +188,6 @@ export const auditLog = sqliteTable('audit_log', {
   }),
   changes: text('changes'), // JSON string of changes
   createdAt: integer('created_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`)
-});
-
-// SLA Policies table
-export const slaPolicies = sqliteTable('sla_policies', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  priority: text('priority', { enum: ['P1', 'P2', 'P3', 'P4'] }).notNull().unique(),
-  firstResponseMinutes: integer('first_response_minutes').notNull(),
-  resolutionMinutes: integer('resolution_minutes').notNull(),
-  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-  createdAt: integer('created_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer('updated_at', { mode: 'timestamp' })
     .notNull()
     .default(sql`(unixepoch())`)
 });

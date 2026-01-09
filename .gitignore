@@ -39,8 +39,7 @@ next-env.d.ts
 *.db-shm
 *.db-wal
 
-# drizzle
-drizzle/
+# drizzle - migrations are in lib/db/migrations/
 
 # windows reserved names
 nul
