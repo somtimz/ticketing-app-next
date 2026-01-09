@@ -6,7 +6,8 @@ import {
   requireRole,
   requireAnyRole
 } from './api-error';
-import type { Session, UserRole } from './rbac';
+import type { Session } from 'next-auth';
+import type { UserRole } from './rbac';
 
 const createSession = (role: UserRole): Session => ({
   user: { id: '1', email: 'test@test.com', role, name: 'Test' },
