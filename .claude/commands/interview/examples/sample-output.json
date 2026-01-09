@@ -1,0 +1,120 @@
+{
+  "examples": {
+    "ticket_requirements": {
+      "interview_type": "ticket-requirements",
+      "timestamp": "2025-01-01T10:00:00Z",
+      "interviewee": "john-doe",
+      "feature_name": "Bulk ticket assignment",
+      "feature_description": "Allow agents to select multiple tickets from the list view and assign them all at once to a chosen agent",
+      "priority": "High",
+      "timeline": "Q1 2025",
+      "deadline_context": "Team scaling initiative - need to handle 2x ticket volume",
+      "user_roles": ["agent", "admin"],
+      "problem_statement": "Agents currently have to assign tickets one at a time, which is time-consuming when handling triage for incoming ticket spikes",
+      "functional_requirements": [
+        "Select multiple tickets via checkboxes in list view",
+        "Assign all selected tickets to a chosen agent from a dropdown",
+        "Show confirmation before bulk assignment",
+        "Display notification when assignment is complete"
+      ],
+      "user_workflow": "Agent goes to ticket list, filters for unassigned tickets, selects 10+ tickets via checkboxes, clicks 'Bulk Assign', selects agent, confirms",
+      "user_inputs": "Checkbox selections, agent selection from dropdown",
+      "expected_outputs": "All selected tickets show updated assigned_agent_id",
+      "edge_cases": [
+        "Handle tickets already assigned to other agents",
+        "Handle tickets in 'Resolved' status",
+        "Handle permission errors if agent lacks access"
+      ],
+      "ui_requirements": "Checkbox column in list view, 'Bulk Assign' button appears when tickets selected, modal for agent selection",
+      "ui_type": "modal",
+      "displayed_information": "Selected ticket count, agent dropdown, confirmation summary",
+      "reference_features": "Similar to Gmail bulk move functionality",
+      "data_requirements": "Need to store assigned_agent_id, assignment_timestamp, assigned_by_user_id",
+      "database_tables": ["tickets", "users"],
+      "external_apis": [],
+      "data_relationships": "tickets.assigned_agent_id -> users.id",
+      "acceptance_criteria": [
+        "Can select 10+ tickets at once",
+        "Bulk assignment completes within 2 seconds",
+        "Audit trail created for each assignment",
+        "Only agents can bulk assign"
+      ],
+      "definition_of_done": "Feature deployed, tested with 50+ tickets, documentation updated",
+      "additional_notes": "Consider adding bulk actions for status changes in future iteration"
+    },
+    "user_feedback": {
+      "interview_type": "user-feedback",
+      "timestamp": "2025-01-01T14:30:00Z",
+      "interviewee": "jane-smith",
+      "role": "agent",
+      "experience_duration": "6 months",
+      "usage_frequency": "daily",
+      "primary_use_cases": [
+        "Reviewing assigned tickets",
+        "Updating ticket status",
+        "Adding comments to tickets"
+      ],
+      "overall_rating": "7",
+      "rating_factors": {
+        "positive": [
+          "Fast page loads",
+          "Clean interface",
+          "Good mobile experience"
+        ],
+        "negative": [
+          "Can't filter by multiple categories",
+          "No keyboard shortcuts",
+          "Limited search functionality"
+        ]
+      },
+      "pain_points": [
+        {
+          "problem": "Can't filter by multiple categories at once",
+          "example": "Wanted to see Hardware AND Software tickets, but filter only allows one category",
+          "impact": "Have to switch between filters or use list view scrolling"
+        },
+        {
+          "problem": "No way to quickly navigate between tickets",
+          "example": "After resolving a ticket, have to go back to list view to find next one",
+          "impact": "Adds ~10 seconds per ticket, which adds up over 50+ tickets daily"
+        },
+        {
+          "problem": "Search doesn't find partial matches in ticket descriptions",
+          "example": "Searching 'database' doesn't find 'database connection failed'",
+          "impact": "Hard to find related tickets"
+        }
+      ],
+      "workflow_inefficiencies": [
+        {
+          "task": "Assigning multiple tickets",
+          "current_steps": "Open ticket > click assign > select agent > save > repeat for each ticket",
+          "suggested_improvement": "Bulk assignment from list view"
+        },
+        {
+          "task": "Finding tickets from a specific customer",
+          "current_steps": "Click customer name, see their tickets, but can't filter or sort",
+          "suggested_improvement": "Add filter and sort options to customer ticket view"
+        }
+      ],
+      "missing_features": [
+        {
+          "feature": "Saved filters / custom views",
+          "envisioned_usage": "Save my common filters like 'High priority, unassigned Hardware tickets'",
+          "external_examples": "Jira quick filters"
+        },
+        {
+          "feature": "Ticket dashboard with metrics",
+          "envisioned_usage": "See my open ticket count, average resolution time, etc.",
+          "external_examples": "Zendesk agent dashboard"
+        },
+        {
+          "feature": "Canned responses / templates",
+          "envisioned_usage": "Quick insert common responses like 'Thank you for contacting support'",
+          "external_examples": "Intercom macros"
+        }
+      ],
+      "top_suggestion": "Add bulk assignment capability - this is the biggest time saver for our team",
+      "additional_comments": "Overall happy with the system. These improvements would make it much more efficient for high-volume agents."
+    }
+  }
+}

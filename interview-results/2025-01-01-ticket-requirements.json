@@ -1,0 +1,52 @@
+{
+  "interview_type": "ticket-requirements",
+  "timestamp": "2025-01-01T00:00:00Z",
+  "interviewee": "user",
+  "feature_name": "Issue Logging",
+  "feature_description": "Collects information from callers about issues with their equipment, applications, or environment",
+  "priority": "Medium",
+  "timeline": "By January 10, 2026",
+  "deadline_context": "No impact if slips",
+  "user_roles": ["agents"],
+  "problem_statement": "The existing ticket system needs to be replaced",
+  "functional_requirements": [
+    "Agent collects caller information (name, ID, email)",
+    "Agent collects issue details (category, description, priority)",
+    "Ticket is automatically created",
+    "Email confirmation sent to caller",
+    "If caller follows up on existing issue, add call to that issue",
+    "Non-employees treated as guest users with employee reference",
+    "Missing category allowed but highlighted",
+    "Agent can resolve issue directly",
+    "Agent can reassign open issue to another agent",
+    "Agent can update issue status",
+    "Agent can send update to caller",
+    "Agent can follow up with caller for additional questions",
+    "Closed issue may trigger: problem ticket, dev PR, or knowledge article update"
+  ],
+  "user_workflow": "Caller contacts via phone or email -> Agent collects caller info and issue details -> Ticket automatically created -> Email confirmation sent to caller -> If follow-up call on existing issue, add call to that issue -> Agent manages issue (resolve, reassign, update status, communicate) -> Issue closed -> Caller updated -> May trigger downstream actions",
+  "user_inputs": "Caller name, ID, email (for employees); Issue category, description, priority; For guest users: reference to employee",
+  "expected_outputs": "New ticket created; Email confirmation sent to caller; For follow-ups: call added to existing issue",
+  "edge_cases": [
+    "Non-employees treated as guest users with employee reference",
+    "Missing category allowed but should be highlighted",
+    "Follow-up calls on existing issue are added to that issue instead of creating duplicate"
+  ],
+  "ui_requirements": "New page with ServiceNow workspace-style interface",
+  "ui_type": "page",
+  "displayed_information": "Date, time, caller, agent, category, priority",
+  "reference_features": "ServiceNow workspace for agents",
+  "data_requirements": "tickets, users, employees, calls, categories entities with relationships",
+  "database_tables": ["tickets", "users", "employees", "calls", "categories"],
+  "external_apis": ["Employee directory", "Email service"],
+  "data_relationships": "Ticket belongs to caller (user/employee); Ticket assigned to agent (user); Agent can reassign to another agent; Call linked to ticket",
+  "acceptance_criteria": [
+    "Agent can resolve an issue directly",
+    "Agent can reassign an open issue to another agent",
+    "Agent can update issue status",
+    "Agent can send an update to the caller",
+    "Agent can follow up with caller to ask additional questions"
+  ],
+  "definition_of_done": "Caller is updated and issue is closed; A closed issue may prompt actions such as create a problem ticket, create a PR for development team, create or update a knowledge article",
+  "additional_notes": ""
+}
