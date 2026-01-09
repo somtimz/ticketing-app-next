@@ -95,3 +95,7 @@ const config = {
 };
 
 export const { handlers, auth, signIn, signOut } = NextAuth(config);
+
+// Re-export auth utility functions for convenience
+export { getUserRole, hasRole, hasAnyRole } from './auth-utils';
+
