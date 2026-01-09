@@ -1,7 +1,10 @@
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
-export const roleEnum = ['employee', 'agent', 'teamLead', 'admin'] as const;
+// Role enum for type-safe role management
+export const roleEnum = text('role', {
+  enum: ['Employee', 'Agent', 'TeamLead', 'Admin']
+});
 
 // Users table (agents, employees, team leads, admins)
 export const users = sqliteTable('users', {
@@ -9,7 +12,7 @@ export const users = sqliteTable('users', {
   email: text('email').notNull().unique(),
   passwordHash: text('password_hash'), // Nullable for SAML users
   fullName: text('full_name').notNull(),
-  role: text('role', { enum: roleEnum }).notNull().default('employee'),
+  role: roleEnum.notNull().default('Employee'),
   samlIdentityId: text('saml_identity_id'), // For SSO accounts
   department: text('department'),
   location: text('location'),
