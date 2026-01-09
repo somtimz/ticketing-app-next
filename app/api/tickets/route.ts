@@ -28,8 +28,12 @@ export async function GET(req: NextRequest) {
         ticketNumber: tickets.ticketNumber,
         title: tickets.title,
         description: tickets.description,
+        impact: tickets.impact,
+        urgency: tickets.urgency,
         priority: tickets.priority,
         status: tickets.status,
+        slaFirstResponseDue: tickets.slaFirstResponseDue,
+        slaResolutionDue: tickets.slaResolutionDue,
         createdAt: tickets.createdAt,
         updatedAt: tickets.updatedAt,
         resolvedAt: tickets.resolvedAt,
@@ -62,8 +66,12 @@ export async function GET(req: NextRequest) {
       ticketNumber: ticket.ticketNumber,
       title: ticket.title,
       description: ticket.description,
+      impact: ticket.impact,
+      urgency: ticket.urgency,
       priority: ticket.priority,
       status: ticket.status,
+      slaFirstResponseDue: ticket.slaFirstResponseDue,
+      slaResolutionDue: ticket.slaResolutionDue,
       createdAt: ticket.createdAt,
       updatedAt: ticket.updatedAt,
       resolvedAt: ticket.resolvedAt,
@@ -134,7 +142,6 @@ export async function POST(req: NextRequest) {
 
     // Find or create category
     let categoryId: number | null = null;
-    let defaultAgentId: number | null = null;
     if (validatedData.category) {
       const category = await db
         .select()
@@ -143,8 +150,6 @@ export async function POST(req: NextRequest) {
         .limit(1);
       if (category.length > 0) {
         categoryId = category[0].id;
-        // TODO: Add defaultAgentId to categories schema and use it here
-        // defaultAgentId = category[0].defaultAgentId;
       }
     }
 
@@ -200,13 +205,6 @@ export async function POST(req: NextRequest) {
     // Determine initial status and assignment
     let initialStatus = 'Open';
     let assignedAgentId: number | null = null;
-
-    // Auto-assignment logic: if category has a default agent, assign to them
-    // TODO: After adding defaultAgentId to categories schema, uncomment this:
-    // if (defaultAgentId) {
-    //   assignedAgentId = defaultAgentId;
-    //   initialStatus = 'In Progress'; // Will be 'Assigned' after migration
-    // }
 
     // Create ticket
     const newTicket = await db

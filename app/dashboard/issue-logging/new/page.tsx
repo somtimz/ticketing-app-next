@@ -21,7 +21,8 @@ export default function NewIssuePage(): JSX.Element {
       title: formData.get('title') as string,
       description: formData.get('description') as string,
       category: formData.get('category') as string | undefined,
-      priority: formData.get('priority') as 'Low' | 'Medium' | 'High' | 'Critical',
+      impact: formData.get('impact') as 'Low' | 'Medium' | 'High',
+      urgency: formData.get('urgency') as 'Low' | 'Medium' | 'High',
       callerName: formData.get('callerName') as string,
       callerEmail: formData.get('callerEmail') as string | undefined,
       callerPhone: formData.get('callerPhone') as string | undefined,
@@ -149,7 +150,7 @@ export default function NewIssuePage(): JSX.Element {
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
               />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label htmlFor="category" className="block text-sm font-medium text-gray-700">
                   Category
@@ -169,12 +170,12 @@ export default function NewIssuePage(): JSX.Element {
                 </select>
               </div>
               <div>
-                <label htmlFor="priority" className="block text-sm font-medium text-gray-700">
-                  Priority *
+                <label htmlFor="impact" className="block text-sm font-medium text-gray-700">
+                  Impact *
                 </label>
                 <select
-                  id="priority"
-                  name="priority"
+                  id="impact"
+                  name="impact"
                   required
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                 >
@@ -183,7 +184,23 @@ export default function NewIssuePage(): JSX.Element {
                     Medium
                   </option>
                   <option value="High">High</option>
-                  <option value="Critical">Critical</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="urgency" className="block text-sm font-medium text-gray-700">
+                  Urgency *
+                </label>
+                <select
+                  id="urgency"
+                  name="urgency"
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                >
+                  <option value="Low">Low</option>
+                  <option value="Medium" selected>
+                    Medium
+                  </option>
+                  <option value="High">High</option>
                 </select>
               </div>
             </div>

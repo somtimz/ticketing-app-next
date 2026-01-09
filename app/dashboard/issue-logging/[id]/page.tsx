@@ -12,10 +12,10 @@ const STATUS_COLORS: Record<TicketStatus, string> = {
 };
 
 const PRIORITY_COLORS: Record<TicketPriority, string> = {
-  Low: 'bg-priority-low text-white',
-  Medium: 'bg-priority-medium text-white',
-  High: 'bg-priority-high text-white',
-  Critical: 'bg-priority-critical text-white'
+  P1: 'bg-priority-critical text-white',
+  P2: 'bg-priority-high text-white',
+  P3: 'bg-priority-medium text-white',
+  P4: 'bg-priority-low text-white'
 };
 
 export default function TicketDetailPage(): JSX.Element {

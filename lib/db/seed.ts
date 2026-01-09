@@ -1,7 +1,8 @@
 import * as schema from './schema';
 import { db } from '../db';
 import bcrypt from 'bcryptjs';
-import type { NewCategory, NewUser, NewEmployee, NewTicket, NewCaller, NewTicketStatusHistory, NewSlaPolicy } from '@/types';
+import type { NewCategory, NewUser, NewEmployee, NewTicket, NewCaller, NewSlaPolicy } from '@/types';
+import type { NewTicketStatusHistory } from './schema';
 import { calculatePriority, calculateSLADueDates } from '@/lib/sla';
 
 async function seed(): Promise<void> {
@@ -293,7 +294,6 @@ async function seed(): Promise<void> {
 
   // Filter users by role for assignment
   const agents = insertedUsers.filter(u => u.role === 'Agent');
-  const teamLeads = insertedUsers.filter(u => u.role === 'TeamLead');
 
   const ticketsData: NewTicket[] = [];
 

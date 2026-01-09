@@ -40,8 +40,12 @@ export async function GET(
         ticketNumber: tickets.ticketNumber,
         title: tickets.title,
         description: tickets.description,
+        impact: tickets.impact,
+        urgency: tickets.urgency,
         priority: tickets.priority,
         status: tickets.status,
+        slaFirstResponseDue: tickets.slaFirstResponseDue,
+        slaResolutionDue: tickets.slaResolutionDue,
         createdAt: tickets.createdAt,
         updatedAt: tickets.updatedAt,
         resolvedAt: tickets.resolvedAt,
@@ -134,8 +138,12 @@ export async function GET(
       ticketNumber: ticket.ticketNumber,
       title: ticket.title,
       description: ticket.description,
+      impact: ticket.impact,
+      urgency: ticket.urgency,
       priority: ticket.priority,
       status: ticket.status,
+      slaFirstResponseDue: ticket.slaFirstResponseDue,
+      slaResolutionDue: ticket.slaResolutionDue,
       createdAt: ticket.createdAt,
       updatedAt: ticket.updatedAt,
       resolvedAt: ticket.resolvedAt,
@@ -198,6 +206,9 @@ export async function PATCH(
     const session = await auth();
     requireAuth(session);
 
+    // After requireAuth, session is guaranteed to be non-null
+    const authenticatedSession = session!;
+
     const { id } = await params;
     const ticketId = Number.parseInt(id, 10);
 
@@ -248,7 +259,7 @@ export async function PATCH(
     // - TeamLeads can update any ticket
     // - Admins can update any ticket
     const hasPermission = canModifyTicket(
-      session,
+      authenticatedSession,
       currentTicket.callerId,
       currentTicket.assignedAgentId
     );
@@ -294,7 +305,7 @@ export async function PATCH(
       ticketId,
       fromStatus: currentStatus,
       toStatus: newStatus,
-      changedBy: Number.parseInt(session.user.id, 10),
+      changedBy: Number.parseInt(authenticatedSession.user.id, 10),
       notes: validatedData.notes || null
     });
 
