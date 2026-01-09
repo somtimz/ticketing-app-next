@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import type { TicketWithRelations, TicketStatus } from '@/types';
 
 const STATUS_COLORS: Record<TicketStatus, string> = {
@@ -47,12 +48,12 @@ export default function IssueLoggingPage(): JSX.Element {
             Create and manage support tickets
           </p>
         </div>
-        <a
+        <Link
           href="/dashboard/issue-logging/new"
           className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
         >
           New Issue
-        </a>
+        </Link>
       </div>
 
       {/* Stats */}
@@ -102,7 +103,7 @@ export default function IssueLoggingPage(): JSX.Element {
             </div>
           ) : (
             tickets.map(ticket => (
-              <a
+              <Link
                 key={ticket.id}
                 href={`/dashboard/issue-logging/${ticket.id}`}
                 className="block hover:bg-gray-50 transition-colors"
@@ -159,7 +160,7 @@ export default function IssueLoggingPage(): JSX.Element {
                     </div>
                   </div>
                 </div>
-              </a>
+              </Link>
             ))
           )}
         </div>

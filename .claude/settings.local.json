@@ -22,7 +22,23 @@
       "Bash(git init:*)",
       "Bash(git add:*)",
       "Bash(git reset:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run lint)",
+      "Skill(superpowers:brainstorming)",
+      "Bash(if not exist \"docs\\\\plans\" mkdir \"docs\\\\plans\")",
+      "Skill(superpowers:using-git-worktrees)",
+      "Bash(git check-ignore:*)",
+      "Bash(git worktree add:*)",
+      "Skill(superpowers:writing-plans)",
+      "Bash(powershell:*)",
+      "Skill(superpowers:subagent-driven-development)",
+      "mcp__plugin_serena_serena__list_dir",
+      "mcp__plugin_serena_serena__activate_project",
+      "Bash(npm view:*)",
+      "Skill(superpowers:systematic-debugging)",
+      "Bash(gh repo list:*)",
+      "Bash(git remote add:*)"
     ]
   }
 }
