@@ -1197,7 +1197,9 @@ Update `types/index.ts`:
 export type Priority = 'P1' | 'P2' | 'P3' | 'P4';
 export type Impact = 'Low' | 'Medium' | 'High';
 export type Urgency = 'Low' | 'Medium' | 'High';
-export type TicketStatus = 'New' | 'Assigned' | 'InProgress' | 'Pending' | 'Resolved' | 'Closed';
+// TODO: Migrate database to new status values ('New' | 'Assigned' | 'InProgress' | 'Pending' | 'Resolved' | 'Closed')
+// Currently using existing database values ('Open' | 'In Progress' | 'Resolved' | 'Closed') to match current schema
+export type TicketStatus = 'Open' | 'In Progress' | 'Resolved' | 'Closed'; // 'New' | 'Assigned' | 'InProgress' | 'Pending' | 'Resolved' | 'Closed';
 export type UserRole = 'Employee' | 'Agent' | 'TeamLead' | 'Admin';
 
 // Update the Ticket interface to include new fields
@@ -1294,11 +1296,12 @@ export async function POST(req: Request) {
     const ticketNumber = `INC-${String((ticketCount.length || 0) + 1).padStart(4, '0')}`;
 
     // Create ticket
+    // TODO: After database migration, use 'Assigned' and 'New' statuses
     const [ticket] = await db.insert(tickets).values({
       ticketNumber,
       title: validated.title,
       description: validated.description,
-      status: assignedAgentId ? 'Assigned' : 'New',
+      status: assignedAgentId ? 'In Progress' : 'Open', // assignedAgentId ? 'Assigned' : 'New',
       priority,
       impact: validated.impact,
       urgency: validated.urgency,
@@ -1345,8 +1348,10 @@ import { tickets } from '@/lib/db/schema';
 import { requireAuth, canModifyTicket } from '@/lib/rbac';
 import { eq } from 'drizzle-orm';
 
+// TODO: Update to new status values after database migration
 const updateStatusSchema = z.object({
-  status: z.enum(['New', 'Assigned', 'InProgress', 'Pending', 'Resolved', 'Closed'])
+  status: z.enum(['Open', 'In Progress', 'Resolved', 'Closed'])
+  // status: z.enum(['New', 'Assigned', 'InProgress', 'Pending', 'Resolved', 'Closed'])
 });
 
 export async function PATCH(
@@ -1487,7 +1492,7 @@ async function seed() {
       ticketNumber: 'INC-0001',
       title: 'Laptop not booting',
       description: 'My laptop shows a blue screen when I try to turn it on.',
-      status: 'New',
+      status: 'Open', // TODO: Change to 'New' after database migration
       priority: 'P2',
       impact: 'Medium',
       urgency: 'Medium',
@@ -1585,7 +1590,7 @@ Create `docs/testing-manual.md`:
    - Impact: High
    - Urgency: Medium
 4. Submit
-5. Verify: Status is "Assigned" (auto-assigned to agent)
+5. Verify: Status is "In Progress" (auto-assigned to agent) // TODO: Update to "Assigned" after database migration
 6. Verify: Priority is "P2" (High + Medium = P2)
 7. Verify: SLA due dates are set
 
@@ -1594,7 +1599,7 @@ Create `docs/testing-manual.md`:
 1. Login as `agent@test.com`
 2. Navigate to `/dashboard/issue-logging`
 3. Click on ticket INC-0001
-4. Change status to "InProgress"
+4. Change status to "In Progress" // TODO: Update to "InProgress" after database migration
 5. Verify: Status updated, resolvedAt timestamp set
 6. Add comment: "Working on this issue"
 7. Verify: Comment appears in activity log
