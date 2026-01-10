@@ -6,7 +6,7 @@ async function checkTicketColumns() {
   const db = new Database(dbPath);
 
   try {
-    const columns = db.pragma('table_info(tickets)');
+    const columns = db.pragma('table_info(tickets)') as any[];
     console.log('Current tickets table columns:');
     console.table(columns);
 

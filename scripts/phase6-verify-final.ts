@@ -24,13 +24,13 @@ async function verifyFinalState() {
     console.log('────────────────────────────────');
 
     // Check users table
-    const usersColumns = db.pragma('table_info(users)');
+    const usersColumns = db.pragma('table_info(users)') as any[];
     const userRoles = db.prepare('SELECT DISTINCT role FROM users').all() as any[];
     console.log(`  ✓ Users table: ${usersColumns.length} columns`);
     console.log(`    Roles: ${userRoles.map((u: any) => u.role).join(', ')}`);
 
     // Check tickets table
-    const ticketsColumns = db.pragma('table_info(tickets)');
+    const ticketsColumns = db.pragma('table_info(tickets)') as any[];
     const ticketPriorities = db.prepare('SELECT DISTINCT priority FROM tickets').all() as any[];
     const ticketStatuses = db.prepare('SELECT DISTINCT status FROM tickets').all() as any[];
     console.log(`  ✓ Tickets table: ${ticketsColumns.length} columns`);

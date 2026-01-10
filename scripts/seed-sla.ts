@@ -4,7 +4,12 @@ import { slaPolicies } from '../lib/db/schema';
 async function seedSLAPolicies() {
   console.log('Seeding SLA policies...');
 
-  const policies = [
+  const policies: Array<{
+    priority: 'P1' | 'P2' | 'P3' | 'P4';
+    firstResponseMinutes: number;
+    resolutionMinutes: number;
+    isActive: boolean;
+  }> = [
     {
       priority: 'P1',
       firstResponseMinutes: 15,   // 15 minutes

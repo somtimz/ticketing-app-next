@@ -10,7 +10,7 @@ async function verifyPhase3Changes() {
   try {
     // Check users table
     console.log('USERS table:');
-    const usersColumns = db.pragma('table_info(users)');
+    const usersColumns = db.pragma('table_info(users)') as any[];
     const newUsersColumns = usersColumns.filter((c: any) =>
       ['saml_identity_id', 'department', 'location'].includes(c.name)
     );
@@ -18,7 +18,7 @@ async function verifyPhase3Changes() {
 
     // Check employees table
     console.log('\nEMPLOYEES table:');
-    const employeesColumns = db.pragma('table_info(employees)');
+    const employeesColumns = db.pragma('table_info(employees)') as any[];
     const newEmployeesColumns = employeesColumns.filter((c: any) =>
       ['location', 'user_id'].includes(c.name)
     );
@@ -26,7 +26,7 @@ async function verifyPhase3Changes() {
 
     // Check categories table
     console.log('\nCATEGORIES table:');
-    const categoriesColumns = db.pragma('table_info(categories)');
+    const categoriesColumns = db.pragma('table_info(categories)') as any[];
     const newCategoriesColumns = categoriesColumns.filter((c: any) =>
       ['parent_category_id', 'default_agent_id', 'form_schema', 'updated_at'].includes(c.name)
     );
@@ -34,7 +34,7 @@ async function verifyPhase3Changes() {
 
     // Check tickets table
     console.log('\nTICKETS table:');
-    const ticketsColumns = db.pragma('table_info(tickets)');
+    const ticketsColumns = db.pragma('table_info(tickets)') as any[];
     const newTicketsColumns = ticketsColumns.filter((c: any) =>
       ['created_by', 'impact', 'urgency', 'sla_first_response_due', 'sla_resolution_due'].includes(c.name)
     );
