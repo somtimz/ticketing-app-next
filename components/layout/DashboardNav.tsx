@@ -2,20 +2,31 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import type { NavItem } from '@/types';
+import type { NavItem, UserRole } from '@/types';
 
-const navItems: NavItem[] = [
+const baseNavItems: NavItem[] = [
   { href: '/dashboard/issue-logging', label: 'Issue Logging', icon: '📋' },
   { href: '/dashboard/my-tickets', label: 'My Tickets', icon: '🎫' },
   { href: '/dashboard/all-tickets', label: 'All Tickets', icon: '📑' }
 ];
 
-export default function DashboardNav(): JSX.Element {
+const adminNavItems: NavItem[] = [
+  { href: '/dashboard/agents', label: 'Manage Agents', icon: '👥' }
+];
+
+interface DashboardNavProps {
+  userRole?: UserRole | null;
+}
+
+export default function DashboardNav({ userRole }: DashboardNavProps): JSX.Element {
   const pathname = usePathname();
+  const isAdmin = userRole === 'Admin';
+
+  const allNavItems = [...baseNavItems, ...(isAdmin ? adminNavItems : [])];
 
   return (
     <nav className="p-4 space-y-2">
-      {navItems.map((item: NavItem) => (
+      {allNavItems.map((item: NavItem) => (
         <Link
           key={item.href}
           href={item.href}

@@ -176,11 +176,12 @@ export default function NewIssuePage(): JSX.Element {
                 <select
                   id="impact"
                   name="impact"
+                  defaultValue="Medium"
                   required
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                 >
                   <option value="Low">Low</option>
-                  <option value="Medium" selected>
+                  <option value="Medium">
                     Medium
                   </option>
                   <option value="High">High</option>
@@ -193,11 +194,12 @@ export default function NewIssuePage(): JSX.Element {
                 <select
                   id="urgency"
                   name="urgency"
+                  defaultValue="Medium"
                   required
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                 >
                   <option value="Low">Low</option>
-                  <option value="Medium" selected>
+                  <option value="Medium">
                     Medium
                   </option>
                   <option value="High">High</option>

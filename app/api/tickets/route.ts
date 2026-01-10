@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
     const limit = parseInt(searchParams.get('limit') || '50');
+    const mine = searchParams.get('mine') === 'true';
 
     const result = await db
       .select({
@@ -38,6 +39,7 @@ export async function GET(req: NextRequest) {
         updatedAt: tickets.updatedAt,
         resolvedAt: tickets.resolvedAt,
         closedAt: tickets.closedAt,
+        createdBy: tickets.createdBy,
         category: {
           id: categories.id,
           name: categories.name

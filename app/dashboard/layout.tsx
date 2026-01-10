@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import DashboardNav from '@/components/layout/DashboardNav';
+import LogoutButton from '@/components/layout/LogoutButton';
 
 export default async function DashboardLayout({
   children
@@ -31,6 +32,7 @@ export default async function DashboardLayout({
               <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
                 {session.user?.role}
               </span>
+              <LogoutButton />
             </div>
           </div>
         </div>
@@ -40,7 +42,7 @@ export default async function DashboardLayout({
       <div className="flex">
         {/* Sidebar Navigation */}
         <aside className="w-64 bg-white border-r border-gray-200 min-h-screen">
-          <DashboardNav />
+          <DashboardNav userRole={session.user?.role} />
         </aside>
 
         {/* Page Content */}
