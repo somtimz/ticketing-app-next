@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { tickets, callers, categories, calls, users, employees } from '@/lib/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, or, and, sql } from 'drizzle-orm';
 import { createTicketSchema, type CreateTicketInput } from '@/lib/validators';
 import { calculatePriority, calculateSLADueDates } from '@/lib/sla';
+import { sendTicketCreatedEmail, sendTicketAssignedEmail } from '@/lib/email';
+import { hasRole } from '@/lib/rbac';
 import type { TicketWithRelations, ApiErrorResponse } from '@/types';
 
 // GET /api/tickets - List tickets
@@ -22,6 +24,53 @@ export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
     const limit = parseInt(searchParams.get('limit') || '50');
     const mine = searchParams.get('mine') === 'true';
+    const status = searchParams.get('status');
+
+    // Build WHERE clause based on user role and department
+    const userId = parseInt(session.user.id);
+    const userRole = session.user.role as string;
+
+    // Get user's department
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+      columns: {
+        departmentId: true
+      }
+    });
+
+    let whereConditions;
+
+    if (hasRole(session, 'TeamLead') || hasRole(session, 'Admin')) {
+      // Team Leads and Admins can see all tickets
+      whereConditions = status ? eq(tickets.status, status as any) : sql`1=1`;
+    } else if (hasRole(session, 'Agent')) {
+      // Agents can see all tickets (full visibility needed for assignment)
+      whereConditions = status ? eq(tickets.status, status as any) : sql`1=1`;
+    } else {
+      // Employees see their own tickets + department tickets
+      if (user?.departmentId) {
+        whereConditions = status
+          ? and(
+              or(
+                eq(tickets.createdBy, userId),
+                eq(tickets.departmentId, user.departmentId)
+              ),
+              eq(tickets.status, status as any)
+            )
+          : or(
+              eq(tickets.createdBy, userId),
+              eq(tickets.departmentId, user.departmentId)
+            );
+      } else {
+        // No department assigned - only see own tickets
+        whereConditions = status
+          ? and(
+              eq(tickets.createdBy, userId),
+              eq(tickets.status, status as any)
+            )
+          : eq(tickets.createdBy, userId);
+      }
+    }
 
     const result = await db
       .select({
@@ -60,6 +109,7 @@ export async function GET(req: NextRequest) {
       .leftJoin(categories, eq(tickets.categoryId, categories.id))
       .leftJoin(callers, eq(tickets.callerId, callers.id))
       .leftJoin(users, eq(tickets.assignedAgentId, users.id))
+      .where(whereConditions)
       .orderBy(desc(tickets.createdAt))
       .limit(limit);
 
@@ -235,6 +285,38 @@ export async function POST(req: NextRequest) {
       callType: 'inbound',
       notes: 'Initial ticket creation'
     });
+
+    // Send email notifications
+    const createdTicket = newTicket[0];
+
+    // Send email to ticket creator/submitter
+    if (session.user.email) {
+      await sendTicketCreatedEmail(
+        session.user.email,
+        createdTicket.ticketNumber,
+        createdTicket.title,
+        createdTicket.priority,
+        createdTicket.id
+      );
+    }
+
+    // Send email to assigned agent if ticket was auto-assigned
+    if (assignedAgentId) {
+      const agent = await db.query.users.findFirst({
+        where: eq(users.id, assignedAgentId)
+      });
+
+      if (agent?.email) {
+        await sendTicketAssignedEmail(
+          agent.email,
+          createdTicket.ticketNumber,
+          createdTicket.title,
+          createdTicket.priority,
+          createdTicket.id,
+          session.user.fullName || 'System'
+        );
+      }
+    }
 
     return NextResponse.json(newTicket[0], { status: 201 });
   } catch (error) {

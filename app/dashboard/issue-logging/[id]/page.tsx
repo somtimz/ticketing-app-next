@@ -245,7 +245,7 @@ export default function TicketDetailPage(): JSX.Element {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-sm font-medium text-gray-900">
-                      {call.callType} - {call.agent.fullName}
+                      {call.callDirection} - {call.agent.fullName}
                     </p>
                     <p className="text-xs text-gray-500">
                       {new Date(call.createdAt).toLocaleString()}
@@ -254,9 +254,9 @@ export default function TicketDetailPage(): JSX.Element {
                       <p className="mt-1 text-sm text-gray-700">{call.notes}</p>
                     )}
                   </div>
-                  {call.durationSeconds && (
+                  {call.duration && (
                     <span className="text-xs text-gray-500">
-                      {Math.floor(call.durationSeconds / 60)}m {call.durationSeconds % 60}s
+                      {Math.floor(call.duration / 60)}m {call.duration % 60}s
                     </span>
                   )}
                 </div>

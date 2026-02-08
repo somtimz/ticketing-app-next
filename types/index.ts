@@ -8,7 +8,12 @@ export type {
   Call,
   TicketStatusHistory,
   AuditLog,
-  SlaPolicy
+  SlaPolicy,
+  Department,
+  GuestUser,
+  Comment,
+  Attachment,
+  KnowledgeBaseArticle
 } from '@/lib/db/schema';
 
 // Database insertion types (New* types from Drizzle)
@@ -19,7 +24,12 @@ export type {
   NewCategory,
   NewTicket,
   NewCall,
-  NewSlaPolicy
+  NewSlaPolicy,
+  NewDepartment,
+  NewGuestUser,
+  NewComment,
+  NewAttachment,
+  NewKnowledgeBaseArticle
 } from '@/lib/db/schema';
 
 // SLA and Priority types (import and re-export from lib/sla.ts)
@@ -36,9 +46,8 @@ export interface SLAPolicy {
   updatedAt: Date;
 }
 
-// Ticket status type (matches current database enum)
-// TODO: Update to 'New' | 'Assigned' | 'InProgress' | 'Pending' | 'Resolved' | 'Closed' after database migration
-export type TicketStatus = 'Open' | 'In Progress' | 'Resolved' | 'Closed';
+// Ticket status type (matches database enum)
+export type TicketStatus = 'New' | 'Assigned' | 'InProgress' | 'Pending' | 'Resolved' | 'Closed';
 
 // Form & Request types
 export interface CreateTicketRequest {
@@ -73,9 +82,10 @@ export interface ResolveTicketRequest {
 }
 
 export interface AddCallRequest {
-  callType: 'inbound' | 'outbound' | 'email';
+  callDirection: 'inbound' | 'outbound';
   notes?: string;
-  durationSeconds?: number;
+  duration?: number; // seconds
+  callOutcome?: 'resolved' | 'escalated' | 'follow_up';
 }
 
 // API Response types
@@ -104,39 +114,83 @@ export interface TicketWithRelations {
   closedAt: Date | null;
   slaFirstResponseDue: Date | null;
   slaResolutionDue: Date | null;
+  lastActivityAt: Date | null;
   category: {
     id: number | null;
     name: string | null;
+  } | null;
+  department: {
+    id: number | null;
+    name: string | null;
+    code: string | null;
   } | null;
   caller: {
     id: number;
     fullName: string;
     email: string | null;
     phone: string | null;
-  };
+  } | null;
+  guestUser: {
+    id: number;
+    name: string;
+    email: string;
+    company: string;
+  } | null;
   assignedAgent: {
     id: number | null;
     fullName: string | null;
     email: string | null;
   } | null;
+  suggestedTicket?: {
+    id: number;
+    ticketNumber: string;
+    title: string;
+    resolution: string | null;
+  } | null;
   calls?: CallWithCaller[];
+  comments?: CommentWithAuthor[];
+  attachments?: Attachment[];
   resolution?: string | null;
+}
+
+export interface CommentWithAuthor {
+  id: number;
+  ticketId: number;
+  body: string;
+  isInternal: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  author: {
+    id: number;
+    fullName: string;
+    email: string;
+    role: UserRole;
+  };
+  mentions?: number[]; // Array of user IDs
 }
 
 export interface CallWithCaller {
   id: number;
-  ticketId: number;
-  callerId: number;
+  ticketId: number | null;
+  callerId: number | null;
+  guestUserId: number | null;
   agentId: number;
-  callType: 'inbound' | 'outbound' | 'email';
-  notes: string | null;
-  durationSeconds: number | null;
+  callDirection: 'inbound' | 'outbound';
+  duration: number; // seconds
+  notes: string;
+  callOutcome: 'resolved' | 'escalated' | 'follow_up';
   createdAt: Date;
-  caller: {
+  caller?: {
     id: number;
     fullName: string;
     email: string | null;
-  };
+  } | null;
+  guestUser?: {
+    id: number;
+    name: string;
+    email: string;
+    company: string;
+  } | null;
   agent: {
     id: number;
     fullName: string;
@@ -183,6 +237,13 @@ export type WithRequired<T, K extends keyof T> = T & { [P in K]-?: T[P] };
 // @deprecated Use Priority instead
 export type TicketPriority = Priority;
 
+// Call direction (matches new database enum)
+export type CallDirection = 'inbound' | 'outbound';
+
+// Call outcome (matches database enum)
+export type CallOutcome = 'resolved' | 'escalated' | 'follow_up';
+
+// Legacy call type (deprecated, use CallDirection instead)
 export type CallType = 'inbound' | 'outbound' | 'email';
 
 // User roles (matches database enum)

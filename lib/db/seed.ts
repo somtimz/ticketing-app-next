@@ -1,7 +1,8 @@
 import * as schema from './schema';
 import { db } from '../db';
 import bcrypt from 'bcryptjs';
-import type { NewCategory, NewUser, NewEmployee, NewTicket, NewCaller, NewSlaPolicy } from '@/types';
+import { eq } from 'drizzle-orm';
+import type { NewCategory, NewUser, NewEmployee, NewTicket, NewCaller, NewSlaPolicy, NewDepartment, NewGuestUser } from './schema';
 import type { NewTicketStatusHistory } from './schema';
 import { calculatePriority, calculateSLADueDates } from '@/lib/sla';
 
@@ -120,6 +121,83 @@ async function seed(): Promise<void> {
   await db.insert(schema.users).values(employeeUsersData).onConflictDoNothing();
 
   console.log('  ✓ 1 Admin, 2 Team Leads, 3 Agents, 5 Employees created');
+
+  // ========================================
+  // 1.5. INSERT DEPARTMENTS (5)
+  // ========================================
+
+  console.log('Inserting departments...');
+  const departmentsData: NewDepartment[] = [
+    { name: 'Engineering', code: 'ENG', description: 'Software Development and Engineering', isActive: true },
+    { name: 'Marketing', code: 'MKT', description: 'Marketing and Communications', isActive: true },
+    { name: 'Sales', code: 'SAL', description: 'Sales and Business Development', isActive: true },
+    { name: 'Human Resources', code: 'HR', description: 'Human Resources and People Operations', isActive: true },
+    { name: 'Finance', code: 'FIN', description: 'Finance and Accounting', isActive: true }
+  ];
+
+  await db.insert(schema.departments).values(departmentsData).onConflictDoNothing();
+
+  // Get inserted departments for linking to users
+  const insertedDepartments = await db.select().from(schema.departments);
+  const departmentMap = new Map(insertedDepartments.map(d => [d.code, d.id]));
+
+  // Update users with department assignments
+  await db.update(schema.users)
+    .set({ departmentId: departmentMap.get('ENG') })
+    .where(eq(schema.users.email, 'employee1@company.com'));
+
+  await db.update(schema.users)
+    .set({ departmentId: departmentMap.get('MKT') })
+    .where(eq(schema.users.email, 'employee2@company.com'));
+
+  await db.update(schema.users)
+    .set({ departmentId: departmentMap.get('SAL') })
+    .where(eq(schema.users.email, 'employee3@company.com'));
+
+  await db.update(schema.users)
+    .set({ departmentId: departmentMap.get('HR') })
+    .where(eq(schema.users.email, 'employee4@company.com'));
+
+  await db.update(schema.users)
+    .set({ departmentId: departmentMap.get('FIN') })
+    .where(eq(schema.users.email, 'employee5@company.com'));
+
+  console.log('  ✓ 5 Departments created (ENG, MKT, SAL, HR, FIN) and linked to employees');
+
+  // ========================================
+  // 1.6. INSERT GUEST USERS (2)
+  // ========================================
+
+  console.log('Inserting guest users...');
+
+  // Get admin user for sponsorship
+  const adminUserRecord = await db.select().from(schema.users).where(eq(schema.users.email, 'admin@company.com')).limit(1);
+
+  if (adminUserRecord.length > 0) {
+    const guestUsersData: NewGuestUser[] = [
+      {
+        name: 'External Vendor Contact',
+        email: 'vendor@acme-corp.com',
+        company: 'ACME Corporation',
+        phone: '555-7777',
+        sponsorId: adminUserRecord[0].id,
+        isActive: true,
+        notes: 'Primary contact for software license renewals'
+      },
+      {
+        name: 'Contractor Support',
+        email: 'contractor@external-consulting.com',
+        company: 'External Consulting LLC',
+        phone: '555-8888',
+        sponsorId: adminUserRecord[0].id,
+        isActive: true,
+        notes: 'Contractor for Q1 project support'
+      }
+    ];
+
+    await db.insert(schema.guestUsers).values(guestUsersData).onConflictDoNothing();
+    console.log('  ✓ 2 Guest users created');
+  }
 
   // ========================================
   // 2. INSERT EMPLOYEES (5)
@@ -306,7 +384,7 @@ async function seed(): Promise<void> {
     callerEmail: string,
     impact: 'Low' | 'Medium' | 'High',
     urgency: 'Low' | 'Medium' | 'High',
-    status: 'Open' | 'In Progress' | 'Resolved' | 'Closed',
+    status: 'New' | 'InProgress' | 'Resolved' | 'Closed',
     assignedAgentEmail: string | null,
     createdAtOffset: number, // minutes ago
     resolvedAtOffset: number | null, // minutes ago (null if not resolved)
@@ -349,7 +427,7 @@ async function seed(): Promise<void> {
       'employee1@company.com',
       'High',
       'High',
-      'In Progress',
+      'InProgress',
       'agent1@company.com',
       30, // created 30 min ago
       null,
@@ -381,7 +459,7 @@ async function seed(): Promise<void> {
       'employee2@company.com',
       'High',
       'Medium',
-      'Open',
+      'New',
       null,
       60, // created 1 hour ago
       null,
@@ -395,7 +473,7 @@ async function seed(): Promise<void> {
       'employee4@company.com',
       'Medium',
       'High',
-      'In Progress',
+      'InProgress',
       'agent2@company.com',
       150, // created 2.5 hours ago
       null,
@@ -427,7 +505,7 @@ async function seed(): Promise<void> {
       'employee1@company.com',
       'Low',
       'Medium',
-      'Open',
+      'New',
       null,
       180, // created 3 hours ago
       null,
@@ -455,7 +533,7 @@ async function seed(): Promise<void> {
       'employee3@company.com',
       'Medium',
       'Medium',
-      'In Progress',
+      'InProgress',
       'agent3@company.com',
       300, // created 5 hours ago
       null,
@@ -483,7 +561,7 @@ async function seed(): Promise<void> {
       'employee5@company.com',
       'Medium',
       'Medium',
-      'In Progress',
+      'InProgress',
       'agent2@company.com',
       400, // created ~6.7 hours ago
       null,
@@ -501,7 +579,7 @@ async function seed(): Promise<void> {
       'employee1@company.com',
       'Low',
       'Low',
-      'Open',
+      'New',
       null,
       480, // created 8 hours ago
       null,
@@ -557,7 +635,7 @@ async function seed(): Promise<void> {
       'employee5@company.com',
       'Low',
       'Low',
-      'Open',
+      'New',
       null,
       900, // created 15 hours ago
       null,
@@ -648,43 +726,43 @@ async function seed(): Promise<void> {
   };
 
   // Add status history for resolved tickets
-  addStatusChange('TICK-1002', 'Open', 'In Progress', 'agent1@company.com', 'Acknowledged critical issue', 115);
-  addStatusChange('TICK-1002', 'In Progress', 'Resolved', 'agent1@company.com', 'Replaced faulty RAM module', 90);
+  addStatusChange('TICK-1002', 'New', 'InProgress', 'agent1@company.com', 'Acknowledged critical issue', 115);
+  addStatusChange('TICK-1002', 'InProgress', 'Resolved', 'agent1@company.com', 'Replaced faulty RAM module', 90);
 
-  addStatusChange('TICK-1005', 'Open', 'In Progress', 'agent2@company.com', 'Investigating permission issue', 195);
-  addStatusChange('TICK-1005', 'In Progress', 'Resolved', 'agent2@company.com', 'Reset AD permissions', 180);
+  addStatusChange('TICK-1005', 'New', 'InProgress', 'agent2@company.com', 'Investigating permission issue', 195);
+  addStatusChange('TICK-1005', 'InProgress', 'Resolved', 'agent2@company.com', 'Reset AD permissions', 180);
 
-  addStatusChange('TICK-1007', 'Open', 'In Progress', 'agent3@company.com', 'Installing Adobe Creative Cloud', 230);
-  addStatusChange('TICK-1007', 'In Progress', 'Resolved', 'agent3@company.com', 'Installation complete', 210);
+  addStatusChange('TICK-1007', 'New', 'InProgress', 'agent3@company.com', 'Installing Adobe Creative Cloud', 230);
+  addStatusChange('TICK-1007', 'InProgress', 'Resolved', 'agent3@company.com', 'Installation complete', 210);
 
-  addStatusChange('TICK-1009', 'Open', 'Resolved', 'agent1@company.com', 'Password reset completed', 350);
+  addStatusChange('TICK-1009', 'New', 'Resolved', 'agent1@company.com', 'Password reset completed', 350);
   addStatusChange('TICK-1009', 'Resolved', 'Closed', 'agent1@company.com', 'User confirmed new password working', 340);
 
-  addStatusChange('TICK-1012', 'Open', 'In Progress', 'agent3@company.com', 'Ordering monitor arm', 530);
-  addStatusChange('TICK-1012', 'In Progress', 'Resolved', 'agent3@company.com', 'Monitor arm installed', 500);
+  addStatusChange('TICK-1012', 'New', 'InProgress', 'agent3@company.com', 'Ordering monitor arm', 530);
+  addStatusChange('TICK-1012', 'InProgress', 'Resolved', 'agent3@company.com', 'Monitor arm installed', 500);
 
-  addStatusChange('TICK-1013', 'Open', 'Resolved', 'agent1@company.com', 'Confirmed update safe, user proceeded', 580);
+  addStatusChange('TICK-1013', 'New', 'Resolved', 'agent1@company.com', 'Confirmed update safe, user proceeded', 580);
 
-  addStatusChange('TICK-1014', 'Open', 'In Progress', 'agent2@company.com', 'Processing access request', 710);
-  addStatusChange('TICK-1014', 'In Progress', 'Resolved', 'agent2@company.com', 'Access granted', 700);
+  addStatusChange('TICK-1014', 'New', 'InProgress', 'agent2@company.com', 'Processing access request', 710);
+  addStatusChange('TICK-1014', 'InProgress', 'Resolved', 'agent2@company.com', 'Access granted', 700);
 
-  addStatusChange('TICK-1016', 'Open', 'In Progress', 'agent3@company.com', 'Installing VPN client', 1060);
-  addStatusChange('TICK-1016', 'In Progress', 'Resolved', 'agent3@company.com', 'VPN installed and tested', 1050);
+  addStatusChange('TICK-1016', 'New', 'InProgress', 'agent3@company.com', 'Installing VPN client', 1060);
+  addStatusChange('TICK-1016', 'InProgress', 'Resolved', 'agent3@company.com', 'VPN installed and tested', 1050);
   addStatusChange('TICK-1016', 'Resolved', 'Closed', 'agent3@company.com', 'User confirmed working', 1040);
 
-  addStatusChange('TICK-1017', 'Open', 'In Progress', 'agent1@company.com', 'Diagnosing mouse issue', 1220);
-  addStatusChange('TICK-1017', 'In Progress', 'Resolved', 'agent1@company.com', 'Replaced mouse', 1200);
+  addStatusChange('TICK-1017', 'New', 'InProgress', 'agent1@company.com', 'Diagnosing mouse issue', 1220);
+  addStatusChange('TICK-1017', 'InProgress', 'Resolved', 'agent1@company.com', 'Replaced mouse', 1200);
 
-  addStatusChange('TICK-1018', 'Open', 'Resolved', 'agent2@company.com', 'Provided email signature instructions', 1400);
+  addStatusChange('TICK-1018', 'New', 'Resolved', 'agent2@company.com', 'Provided email signature instructions', 1400);
 
   // Add status history for in-progress tickets
-  addStatusChange('TICK-1001', 'Open', 'In Progress', 'agent1@company.com', 'Investigating database connectivity issue', 25);
+  addStatusChange('TICK-1001', 'New', 'InProgress', 'agent1@company.com', 'Investigating database connectivity issue', 25);
 
-  addStatusChange('TICK-1004', 'Open', 'In Progress', 'agent2@company.com', 'Checking Outlook configuration', 145);
+  addStatusChange('TICK-1004', 'New', 'InProgress', 'agent2@company.com', 'Checking Outlook configuration', 145);
 
-  addStatusChange('TICK-1008', 'Open', 'In Progress', 'agent3@company.com', 'Checking AP in conference room', 295);
+  addStatusChange('TICK-1008', 'New', 'InProgress', 'agent3@company.com', 'Checking AP in conference room', 295);
 
-  addStatusChange('TICK-1010', 'Open', 'In Progress', 'agent2@company.com', 'Preparing new employee account setup', 395);
+  addStatusChange('TICK-1010', 'New', 'InProgress', 'agent2@company.com', 'Preparing new employee account setup', 395);
 
   await db.insert(schema.ticketStatusHistory).values(statusHistoryData).onConflictDoNothing();
   console.log(`  ✓ ${statusHistoryData.length} Status history entries created`);

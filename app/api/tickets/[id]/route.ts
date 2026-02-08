@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { updateTicketStatusSchema, type UpdateTicketStatusInput } from '@/lib/validators';
 import { canModifyTicket } from '@/lib/rbac';
 import { APIError, handleAPIError, requireAuth } from '@/lib/api-error';
+import { sendTicketStatusUpdateEmail, sendTicketResolvedEmail } from '@/lib/email';
 import type { TicketWithRelations, CallWithCaller, ApiErrorResponse } from '@/types';
 
 // GET /api/tickets/[id] - Get ticket details with call history
@@ -90,10 +91,12 @@ export async function GET(
         id: calls.id,
         ticketId: calls.ticketId,
         callerId: calls.callerId,
+        guestUserId: calls.guestUserId,
         agentId: calls.agentId,
-        callType: calls.callType,
+        callDirection: calls.callDirection,
+        duration: calls.duration,
         notes: calls.notes,
-        durationSeconds: calls.durationSeconds,
+        callOutcome: calls.callOutcome,
         createdAt: calls.createdAt,
         caller: {
           id: callers.id,
@@ -107,7 +110,7 @@ export async function GET(
         }
       })
       .from(calls)
-      .innerJoin(callers, eq(calls.callerId, callers.id))
+      .leftJoin(callers, eq(calls.callerId, callers.id))
       .innerJoin(users, eq(calls.agentId, users.id))
       .where(eq(calls.ticketId, ticketId))
       .orderBy(calls.createdAt);
@@ -116,16 +119,18 @@ export async function GET(
       id: call.id,
       ticketId: call.ticketId,
       callerId: call.callerId,
+      guestUserId: call.guestUserId,
       agentId: call.agentId,
-      callType: call.callType,
+      callDirection: call.callDirection,
+      duration: call.duration,
       notes: call.notes,
-      durationSeconds: call.durationSeconds,
+      callOutcome: call.callOutcome,
       createdAt: call.createdAt,
-      caller: {
+      caller: call.caller ? {
         id: call.caller.id,
         fullName: call.caller.fullName,
         email: call.caller.email
-      },
+      } : null,
       agent: {
         id: call.agent.id,
         fullName: call.agent.fullName,
@@ -148,19 +153,19 @@ export async function GET(
       updatedAt: ticket.updatedAt,
       resolvedAt: ticket.resolvedAt,
       closedAt: ticket.closedAt,
-      resolution: ticket.resolution,
-      category: ticket.category
+      resolution: ticket.resolution || null,
+      category: ticket.category && 'id' in ticket.category
         ? {
-            id: ticket.category.id,
-            name: ticket.category.name
+            id: ticket.category.id as number,
+            name: ticket.category.name as string
           }
         : null,
-      caller: ticket.caller
+      caller: ticket.caller && 'id' in ticket.caller
         ? {
-            id: ticket.caller.id,
-            fullName: ticket.caller.fullName,
-            email: ticket.caller.email,
-            phone: ticket.caller.phone
+            id: ticket.caller.id as number,
+            fullName: ticket.caller.fullName as string,
+            email: ticket.caller.email as string | null,
+            phone: ticket.caller.phone as string | null
           }
         : {
             id: 0,
@@ -168,11 +173,11 @@ export async function GET(
             email: null,
             phone: null
           },
-      assignedAgent: ticket.assignedAgent
+      assignedAgent: ticket.assignedAgent && 'id' in ticket.assignedAgent
         ? {
-            id: ticket.assignedAgent.id,
-            fullName: ticket.assignedAgent.fullName,
-            email: ticket.assignedAgent.email
+            id: ticket.assignedAgent.id as number,
+            fullName: ticket.assignedAgent.fullName as string,
+            email: ticket.assignedAgent.email as string
           }
         : null,
       calls: typedCalls
@@ -308,6 +313,53 @@ export async function PATCH(
       changedBy: Number.parseInt(authenticatedSession.user.id, 10),
       notes: validatedData.notes || null
     });
+
+    // Send email notifications
+    // Get full ticket details for email
+    const fullTicket = await db.query.tickets.findFirst({
+      where: eq(tickets.id, ticketId),
+      with: {
+        caller: true,
+        assignedAgent: true
+      }
+    });
+
+    if (fullTicket) {
+      // Send email when ticket is resolved
+      if (newStatus === 'Resolved' && currentStatus !== 'Resolved') {
+        const resolution = validatedData.resolution || fullTicket.resolution || 'Ticket has been resolved by our support team.';
+        const recipients = [fullTicket.caller?.email, fullTicket.assignedAgent?.email].filter(Boolean) as string[];
+
+        for (const recipient of recipients) {
+          await sendTicketResolvedEmail(
+            recipient,
+            fullTicket.ticketNumber,
+            fullTicket.title,
+            resolution,
+            fullTicket.id
+          );
+        }
+      }
+      // Send email for other status changes
+      else if (currentStatus !== newStatus) {
+        const recipients = [fullTicket.caller?.email].filter(Boolean) as string[];
+        if (newStatus === 'In Progress' && fullTicket.assignedAgent?.email) {
+          recipients.push(fullTicket.assignedAgent.email);
+        }
+
+        for (const recipient of recipients) {
+          await sendTicketStatusUpdateEmail(
+            recipient,
+            fullTicket.ticketNumber,
+            fullTicket.title,
+            currentStatus,
+            newStatus,
+            validatedData.notes || null,
+            fullTicket.id
+          );
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,

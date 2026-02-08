@@ -6,6 +6,21 @@ export const roleEnum = text('role', {
   enum: ['Employee', 'Agent', 'TeamLead', 'Admin']
 });
 
+// Departments table (for team-level visibility)
+export const departments = sqliteTable('departments', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull().unique(),
+  code: text('code').notNull().unique(), // e.g., 'ENG', 'SALES', 'HR'
+  description: text('description'),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`)
+});
+
 // Users table (agents, employees, team leads, admins)
 export const users = sqliteTable('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -14,7 +29,9 @@ export const users = sqliteTable('users', {
   fullName: text('full_name').notNull(),
   role: roleEnum.notNull().default('Employee'),
   samlIdentityId: text('saml_identity_id'), // For SSO accounts
-  department: text('department'),
+  departmentId: integer('department_id').references(() => departments.id, {
+    onDelete: 'set null'
+  }),
   location: text('location'),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('created_at', { mode: 'timestamp' })
@@ -46,7 +63,27 @@ export const employees = sqliteTable('employees', {
     .default(sql`(unixepoch())`)
 });
 
-// Callers table (employees + guests)
+// Guest users table (external callers, vendors, contractors)
+export const guestUsers = sqliteTable('guest_users', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  company: text('company').notNull(),
+  phone: text('phone'),
+  sponsorId: integer('sponsor_id').references(() => users.id, {
+    onDelete: 'restrict'
+  }), // Employee who sponsors this guest
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  notes: text('notes'),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`)
+});
+
+// Callers table (employees + guests) - legacy table, kept for compatibility
 export const callers = sqliteTable('callers', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   fullName: text('full_name').notNull(),
@@ -56,6 +93,9 @@ export const callers = sqliteTable('callers', {
     () => employees.id,
     { onDelete: 'set null' }
   ),
+  guestUserId: integer('guest_user_id').references(() => guestUsers.id, {
+    onDelete: 'set null'
+  }),
   isGuest: integer('is_guest', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
@@ -116,47 +156,63 @@ export const tickets = sqliteTable('tickets', {
   status: text('status', {
     enum: ['New', 'Assigned', 'InProgress', 'Pending', 'Resolved', 'Closed']
   }).notNull().default('New'),
-  callerId: integer('caller_id')
-    .notNull()
-    .references(() => callers.id, { onDelete: 'restrict' }),
+  callerId: integer('caller_id').references(() => callers.id, {
+    onDelete: 'restrict'
+  }),
   assignedAgentId: integer('assigned_agent_id').references(() => users.id, {
     onDelete: 'set null'
   }),
   createdBy: integer('created_by').references(() => users.id, {
     onDelete: 'set null'
   }),
+  departmentId: integer('department_id').references(() => departments.id, {
+    onDelete: 'set null'
+  }),
+  guestUserId: integer('guest_user_id').references(() => guestUsers.id, {
+    onDelete: 'set null'
+  }),
   impact: text('impact', { enum: ['Low', 'Medium', 'High'] }).notNull(),
   urgency: text('urgency', { enum: ['Low', 'Medium', 'High'] }).notNull(),
   resolution: text('resolution'),
+  suggestedTicketId: integer('suggested_ticket_id').references(() => tickets.id, {
+    onDelete: 'set null'
+  }), // Link to similar resolved ticket
+  lastActivityAt: integer('last_activity_at', { mode: 'timestamp' }), // For auto-status transitions
   slaFirstResponseDue: integer('sla_first_response_due', { mode: 'timestamp' }),
   slaResolutionDue: integer('sla_resolution_due', { mode: 'timestamp' }),
   resolvedAt: integer('resolved_at', { mode: 'timestamp' }),
+  closedAt: integer('closed_at', { mode: 'timestamp' }),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .default(sql`(unixepoch())`),
   updatedAt: integer('updated_at', { mode: 'timestamp' })
     .notNull()
-    .default(sql`(unixepoch())`),
-  closedAt: integer('closed_at', { mode: 'timestamp' })
+    .default(sql`(unixepoch())`)
 });
 
 // Calls table (phone/email interactions)
 export const calls = sqliteTable('calls', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  ticketId: integer('ticket_id')
-    .notNull()
-    .references(() => tickets.id, { onDelete: 'cascade' }),
-  callerId: integer('caller_id')
-    .notNull()
-    .references(() => callers.id, { onDelete: 'restrict' }),
+  ticketId: integer('ticket_id').references(() => tickets.id, {
+    onDelete: 'cascade'
+  }),
+  callerId: integer('caller_id').references(() => callers.id, {
+    onDelete: 'restrict'
+  }),
+  guestUserId: integer('guest_user_id').references(() => guestUsers.id, {
+    onDelete: 'set null'
+  }),
   agentId: integer('agent_id')
     .notNull()
     .references(() => users.id, { onDelete: 'restrict' }),
-  callType: text('call_type', {
-    enum: ['inbound', 'outbound', 'email']
+  callDirection: text('call_direction', {
+    enum: ['inbound', 'outbound']
   }).notNull(),
-  notes: text('notes'),
-  durationSeconds: integer('duration_seconds'),
+  duration: integer('duration').notNull(), // Duration in seconds
+  notes: text('notes').notNull(),
+  callOutcome: text('call_outcome', {
+    enum: ['resolved', 'escalated', 'follow_up']
+  }).notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .default(sql`(unixepoch())`)
@@ -218,6 +274,27 @@ export const comments = sqliteTable('comments', {
     .default(sql`(unixepoch())`)
 });
 
+// Attachments table (file uploads for tickets and comments)
+export const attachments = sqliteTable('attachments', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  ticketId: integer('ticket_id')
+    .notNull()
+    .references(() => tickets.id, { onDelete: 'cascade' }),
+  commentId: integer('comment_id').references(() => comments.id, {
+    onDelete: 'cascade'
+  }),
+  filename: text('filename').notNull(),
+  fileUrl: text('file_url').notNull(), // URL to stored file (Vercel Blob, S3, etc.)
+  fileSize: integer('file_size').notNull(), // Size in bytes
+  mimeType: text('mime_type').notNull(),
+  uploadedBy: integer('uploaded_by')
+    .notNull()
+    .references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`)
+});
+
 // Knowledge Base Articles table
 export const knowledgeBaseArticles = sqliteTable('knowledge_base_articles', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -244,8 +321,12 @@ export const knowledgeBaseArticles = sqliteTable('knowledge_base_articles', {
 // Type exports
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+export type Department = typeof departments.$inferSelect;
+export type NewDepartment = typeof departments.$inferInsert;
 export type Employee = typeof employees.$inferSelect;
 export type NewEmployee = typeof employees.$inferInsert;
+export type GuestUser = typeof guestUsers.$inferSelect;
+export type NewGuestUser = typeof guestUsers.$inferInsert;
 export type Caller = typeof callers.$inferSelect;
 export type NewCaller = typeof callers.$inferInsert;
 export type Category = typeof categories.$inferSelect;
@@ -262,5 +343,7 @@ export type AuditLog = typeof auditLog.$inferSelect;
 export type NewAuditLog = typeof auditLog.$inferInsert;
 export type Comment = typeof comments.$inferSelect;
 export type NewComment = typeof comments.$inferInsert;
+export type Attachment = typeof attachments.$inferSelect;
+export type NewAttachment = typeof attachments.$inferInsert;
 export type KnowledgeBaseArticle = typeof knowledgeBaseArticles.$inferSelect;
 export type NewKnowledgeBaseArticle = typeof knowledgeBaseArticles.$inferInsert;
