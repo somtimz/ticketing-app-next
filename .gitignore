@@ -48,3 +48,5 @@ nul
 .worktrees/
 .claude/.mcp.json
 .claude/mcpbackup.json
+
+
