@@ -47,6 +47,7 @@ export async function GET(
         status: tickets.status,
         slaFirstResponseDue: tickets.slaFirstResponseDue,
         slaResolutionDue: tickets.slaResolutionDue,
+        lastActivityAt: tickets.lastActivityAt,
         createdAt: tickets.createdAt,
         updatedAt: tickets.updatedAt,
         resolvedAt: tickets.resolvedAt,
@@ -180,6 +181,9 @@ export async function GET(
             email: ticket.assignedAgent.email as string
           }
         : null,
+      lastActivityAt: ticket.lastActivityAt ?? null,
+      department: null,
+      guestUser: null,
       calls: typedCalls
     };
 
@@ -196,10 +200,12 @@ export async function GET(
 // Valid status transitions
 // Note: Pending status is not yet in the database schema but included for future use
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  'Open': ['In Progress'],
-  'In Progress': ['Resolved'], // Pending will be added when schema is updated
-  'Resolved': ['Open', 'Closed'],
-  'Closed': ['Open']
+  'New': ['Assigned', 'InProgress'],
+  'Assigned': ['InProgress', 'Pending', 'Resolved'],
+  'InProgress': ['Pending', 'Resolved'],
+  'Pending': ['Assigned', 'InProgress', 'Resolved'],
+  'Resolved': ['InProgress', 'Closed'],
+  'Closed': ['InProgress']
 };
 
 // PATCH /api/tickets/[id] - Update ticket status
@@ -322,12 +328,12 @@ export async function PATCH(
         caller: true,
         assignedAgent: true
       }
-    });
+    }) as any;
 
     if (fullTicket) {
       // Send email when ticket is resolved
       if (newStatus === 'Resolved' && currentStatus !== 'Resolved') {
-        const resolution = validatedData.resolution || fullTicket.resolution || 'Ticket has been resolved by our support team.';
+        const resolution = fullTicket.resolution || 'Ticket has been resolved by our support team.';
         const recipients = [fullTicket.caller?.email, fullTicket.assignedAgent?.email].filter(Boolean) as string[];
 
         for (const recipient of recipients) {
@@ -343,7 +349,7 @@ export async function PATCH(
       // Send email for other status changes
       else if (currentStatus !== newStatus) {
         const recipients = [fullTicket.caller?.email].filter(Boolean) as string[];
-        if (newStatus === 'In Progress' && fullTicket.assignedAgent?.email) {
+        if (newStatus === 'InProgress' && fullTicket.assignedAgent?.email) {
           recipients.push(fullTicket.assignedAgent.email);
         }
 

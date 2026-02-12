@@ -5,10 +5,21 @@ import Link from 'next/link';
 import type { TicketWithRelations, TicketStatus } from '@/types';
 
 const STATUS_COLORS: Record<TicketStatus, string> = {
-  Open: 'bg-status-open text-white',
-  'In Progress': 'bg-status-inProgress text-white',
+  New: 'bg-status-open text-white',
+  Assigned: 'bg-blue-500 text-white',
+  InProgress: 'bg-status-inProgress text-white',
+  Pending: 'bg-yellow-500 text-white',
   Resolved: 'bg-status-resolved text-white',
   Closed: 'bg-status-closed text-white'
+};
+
+const STATUS_LABELS: Record<TicketStatus, string> = {
+  New: 'New',
+  Assigned: 'Assigned',
+  InProgress: 'In Progress',
+  Pending: 'Pending',
+  Resolved: 'Resolved',
+  Closed: 'Closed'
 };
 
 export default function MyTicketsPage(): JSX.Element {
@@ -43,12 +54,10 @@ export default function MyTicketsPage(): JSX.Element {
     return ticket.status === filter;
   });
 
-  const statusCounts: Partial<Record<TicketStatus, number>> = {
-    Open: tickets.filter(t => t.status === 'Open').length,
-    'In Progress': tickets.filter(t => t.status === 'In Progress').length,
-    Resolved: tickets.filter(t => t.status === 'Resolved').length,
-    Closed: tickets.filter(t => t.status === 'Closed').length
-  };
+  const openCount = tickets.filter(t => t.status === 'New' || t.status === 'Assigned').length;
+  const inProgressCount = tickets.filter(t => t.status === 'InProgress' || t.status === 'Pending').length;
+  const resolvedCount = tickets.filter(t => t.status === 'Resolved').length;
+  const closedCount = tickets.filter(t => t.status === 'Closed').length;
 
   return (
     <div className="space-y-6">
@@ -72,25 +81,25 @@ export default function MyTicketsPage(): JSX.Element {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
           <div className="text-2xl font-semibold text-status-open">
-            {statusCounts.Open || 0}
+            {openCount}
           </div>
           <div className="text-sm text-gray-500 mt-1">Open</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
           <div className="text-2xl font-semibold text-status-inProgress">
-            {statusCounts['In Progress'] || 0}
+            {inProgressCount}
           </div>
           <div className="text-sm text-gray-500 mt-1">In Progress</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
           <div className="text-2xl font-semibold text-status-resolved">
-            {statusCounts.Resolved || 0}
+            {resolvedCount}
           </div>
           <div className="text-sm text-gray-500 mt-1">Resolved</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
           <div className="text-2xl font-semibold text-status-closed">
-            {statusCounts.Closed || 0}
+            {closedCount}
           </div>
           <div className="text-sm text-gray-500 mt-1">Closed</div>
         </div>
@@ -98,7 +107,7 @@ export default function MyTicketsPage(): JSX.Element {
 
       {/* Filter Tabs */}
       <div className="flex gap-2 border-b border-gray-200">
-        {['all', 'Open', 'In Progress', 'Resolved', 'Closed'].map(status => (
+        {['all', 'New', 'Assigned', 'InProgress', 'Pending', 'Resolved', 'Closed'].map(status => (
           <button
             key={status}
             onClick={() => setFilter(status)}
@@ -108,7 +117,7 @@ export default function MyTicketsPage(): JSX.Element {
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
-            {status === 'all' ? 'All' : status}
+            {status === 'all' ? 'All' : status === 'InProgress' ? 'In Progress' : status}
           </button>
         ))}
       </div>
@@ -147,7 +156,7 @@ export default function MyTicketsPage(): JSX.Element {
                         <span
                           className={`px-2 py-1 text-xs font-medium rounded ${STATUS_COLORS[ticket.status]}`}
                         >
-                          {ticket.status}
+                          {STATUS_LABELS[ticket.status]}
                         </span>
                         <span
                           className={`px-2 py-1 text-xs font-medium rounded ${
@@ -167,7 +176,7 @@ export default function MyTicketsPage(): JSX.Element {
                         <span>
                           Caller:{' '}
                           <span className="font-medium text-gray-700">
-                            {ticket.caller.fullName}
+                            {ticket.caller?.fullName ?? '—'}
                           </span>
                         </span>
                         {ticket.category && (

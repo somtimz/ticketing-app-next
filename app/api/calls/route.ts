@@ -39,11 +39,6 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const ticketId = searchParams.get('ticketId');
 
-    let whereCondition;
-    if (ticketId) {
-      whereCondition = eq(calls.ticketId, parseInt(ticketId));
-    }
-
     const callsList = await db.query.calls.findMany({
       where: ticketId ? eq(calls.ticketId, parseInt(ticketId)) : undefined,
       with: {
@@ -119,7 +114,7 @@ export async function POST(req: NextRequest) {
           email: validated.guestEmail,
           company: validated.guestCompany,
           phone: validated.guestPhone || null,
-          sponsorId: parseInt(session.user.id),
+          sponsorId: parseInt(session!.user.id),
           isActive: true
         }).returning();
         guestUserId = guest.id;
@@ -157,7 +152,7 @@ export async function POST(req: NextRequest) {
       ticketId: ticketId || null,
       callerId: validated.callerId || null,
       guestUserId: guestUserId || null,
-      agentId: parseInt(session.user.id),
+      agentId: parseInt(session!.user.id),
       callDirection: validated.callDirection,
       duration: validated.duration,
       notes: validated.notes,

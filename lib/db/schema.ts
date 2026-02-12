@@ -106,7 +106,8 @@ export const callers = sqliteTable('callers', {
 });
 
 // Categories table
-export const categories = sqliteTable('categories', {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const categories: any = sqliteTable('categories', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull().unique(),
   description: text('description'),
@@ -142,7 +143,8 @@ export const slaPolicies = sqliteTable('sla_policies', {
 });
 
 // Tickets table
-export const tickets = sqliteTable('tickets', {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const tickets: any = sqliteTable('tickets', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   ticketNumber: text('ticket_number').notNull().unique(),
   title: text('title').notNull(),

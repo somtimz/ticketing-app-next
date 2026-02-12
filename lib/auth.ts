@@ -51,11 +51,11 @@ const config = {
           .where(eq(users.email, email))
           .limit(1);
 
-        if (!user.length || !user[0].isActive) {
+        if (!user.length || !user[0].isActive || !user[0].passwordHash) {
           return null;
         }
 
-        const isValid = await bcrypt.compare(password, user[0].passwordHash);
+        const isValid = await bcrypt.compare(password, user[0].passwordHash as string);
 
         if (!isValid) {
           return null;

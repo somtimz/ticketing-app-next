@@ -1,3 +1,5 @@
+import type { Attachment } from '@/lib/db/schema';
+
 // Database types (re-exported from schema)
 export type {
   User,
@@ -8,7 +10,7 @@ export type {
   Call,
   TicketStatusHistory,
   AuditLog,
-  SlaPolicy,
+  SLAPolicy,
   Department,
   GuestUser,
   Comment,
@@ -24,7 +26,7 @@ export type {
   NewCategory,
   NewTicket,
   NewCall,
-  NewSlaPolicy,
+  NewSLAPolicy,
   NewDepartment,
   NewGuestUser,
   NewComment,
@@ -35,16 +37,6 @@ export type {
 // SLA and Priority types (import and re-export from lib/sla.ts)
 import type { Priority, Impact, Urgency } from '@/lib/sla';
 export type { Priority, Impact, Urgency };
-
-// SLA utility types
-export interface SLAPolicy {
-  id: number;
-  priority: Priority;
-  firstResponseMinutes: number;
-  resolutionMinutes: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
 
 // Ticket status type (matches database enum)
 export type TicketStatus = 'New' | 'Assigned' | 'InProgress' | 'Pending' | 'Resolved' | 'Closed';

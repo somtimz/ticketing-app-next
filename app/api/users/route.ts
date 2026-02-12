@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
 }
 
 // GET /api/users - List all users (admin only)
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   const session = await auth();
 
   if (!session) {
@@ -120,7 +120,7 @@ export async function GET(req: NextRequest) {
         email: users.email,
         fullName: users.fullName,
         role: users.role,
-        department: users.department,
+        departmentId: users.departmentId,
         location: users.location,
         isActive: users.isActive,
         createdAt: users.createdAt,

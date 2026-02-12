@@ -5,7 +5,7 @@ const db = new Database('data/ticketing.db');
 try {
   // Check if resolution column exists
   const columns = db.pragma('table_info(tickets)');
-  const hasResolution = columns.some((col: any) => col.name === 'resolution');
+  const hasResolution = (columns as any[]).some((col: any) => col.name === 'resolution');
 
   if (!hasResolution) {
     console.log('Adding resolution column to tickets table...');

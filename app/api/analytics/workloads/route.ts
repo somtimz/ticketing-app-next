@@ -23,8 +23,8 @@ export async function GET(req: NextRequest) {
     // If agentId is provided, get specific agent workload
     if (agentId) {
       // Check if user is requesting their own data or is a Team Lead/Admin
-      const userId = parseInt(session.user.id);
-      const userRole = session.user.role as string;
+      const userId = parseInt(session!.user.id);
+      const userRole = session!.user.role as string;
       const isOwnData = userId === parseInt(agentId);
       const canViewOthers = ['TeamLead', 'Admin'].includes(userRole);
 

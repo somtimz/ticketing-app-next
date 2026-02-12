@@ -2,7 +2,7 @@ import * as schema from './schema';
 import { db } from '../db';
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
-import type { NewCategory, NewUser, NewEmployee, NewTicket, NewCaller, NewSlaPolicy, NewDepartment, NewGuestUser } from './schema';
+import type { NewCategory, NewUser, NewEmployee, NewTicket, NewCaller, NewSLAPolicy, NewDepartment, NewGuestUser } from './schema';
 import type { NewTicketStatusHistory } from './schema';
 import { calculatePriority, calculateSLADueDates } from '@/lib/sla';
 
@@ -270,7 +270,7 @@ async function seed(): Promise<void> {
   // ========================================
 
   console.log('Inserting SLA policies...');
-  const slaPoliciesData: NewSlaPolicy[] = [
+  const slaPoliciesData: NewSLAPolicy[] = [
     {
       priority: 'P1',
       firstResponseMinutes: 15, // 15 minutes

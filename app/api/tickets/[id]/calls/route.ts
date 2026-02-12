@@ -57,9 +57,10 @@ export async function POST(
         ticketId,
         callerId: ticket[0].callerId,
         agentId: Number.parseInt(session.user.id, 10),
-        callType: validatedData.callType,
-        notes: validatedData.notes || null,
-        durationSeconds: validatedData.durationSeconds || null
+        callDirection: (validatedData.callType === 'email' ? 'inbound' : validatedData.callType) as 'inbound' | 'outbound',
+        notes: validatedData.notes ?? '',
+        duration: validatedData.durationSeconds ?? 0,
+        callOutcome: 'follow_up' as const
       })
       .returning();
 

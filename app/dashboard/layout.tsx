@@ -42,7 +42,7 @@ export default async function DashboardLayout({
       <div className="flex">
         {/* Sidebar Navigation */}
         <aside className="w-64 bg-white border-r border-gray-200 min-h-screen">
-          <DashboardNav userRole={session.user?.role} />
+          <DashboardNav userRole={session.user?.role as any} />
         </aside>
 
         {/* Page Content */}

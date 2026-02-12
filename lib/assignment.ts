@@ -5,7 +5,7 @@
 
 import { db } from './db';
 import { tickets, users, categories } from './db/schema';
-import { eq, and, sql, desc } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 
 export interface AssignmentResult {
   success: boolean;
@@ -170,24 +170,24 @@ export async function assignTicketsBulk(
  * Get agent workload statistics
  */
 export async function getAgentWorkload(agentId: number) {
-  const tickets = await db.query.tickets.findMany({
+  const agentTickets = await db.query.tickets.findMany({
     where: eq(tickets.assignedAgentId, agentId)
   });
 
-  const open = tickets.filter(t => !['Resolved', 'Closed'].includes(t.status)).length;
-  const resolved = tickets.filter(t => t.status === 'Resolved').length;
-  const closed = tickets.filter(t => t.status === 'Closed').length;
+  const open = agentTickets.filter((t: any) => !['Resolved', 'Closed'].includes(t.status)).length;
+  const resolved = agentTickets.filter((t: any) => t.status === 'Resolved').length;
+  const closed = agentTickets.filter((t: any) => t.status === 'Closed').length;
 
   // Calculate SLA compliance
-  const resolvedTickets = tickets.filter(t => t.status === 'Resolved' && t.resolvedAt && t.slaResolutionDue);
-  const onTime = resolvedTickets.filter(t => t.resolvedAt! <= t.slaResolutionDue!).length;
+  const resolvedTickets = agentTickets.filter((t: any) => t.status === 'Resolved' && t.resolvedAt && t.slaResolutionDue);
+  const onTime = resolvedTickets.filter((t: any) => t.resolvedAt! <= t.slaResolutionDue!).length;
   const slaCompliance = resolvedTickets.length > 0 ? (onTime / resolvedTickets.length) * 100 : 100;
 
   return {
     open,
     resolved,
     closed,
-    total: tickets.length,
+    total: agentTickets.length,
     slaCompliance: Math.round(slaCompliance * 10) / 10
   };
 }
@@ -217,7 +217,7 @@ export async function reassignTicket(
   ticketId: number,
   fromAgentId: number,
   toAgentId: number,
-  reason?: string
+  _reason?: string
 ): Promise<AssignmentResult> {
   // Verify ticket exists and is assigned to fromAgentId
   const ticket = await db.query.tickets.findFirst({

@@ -4,10 +4,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import { auth } from '@/lib/auth';
-import { requireAuth } from '@/lib/rbac';
-import { findSimilarTickets, getSuggestedSolution, findRecurringIssues } from '@/lib/suggestions';
+import { requireAuth } from '@/lib/api-error';
+import { findSimilarTickets, getSuggestedSolution } from '@/lib/suggestions';
 
 // GET /api/tickets/similar - Find similar tickets
 export async function GET(req: NextRequest) {

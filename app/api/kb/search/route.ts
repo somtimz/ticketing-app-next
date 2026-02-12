@@ -4,7 +4,6 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { knowledgeBaseArticles, categories } from '@/lib/db/schema';
@@ -55,7 +54,7 @@ export async function GET(req: NextRequest) {
     ];
 
     // Get total count
-    const { count } = await db
+    const [{ count }] = await db
       .select({ count: sql<number>`count(*)` })
       .from(knowledgeBaseArticles)
       .where(and(...whereConditions));

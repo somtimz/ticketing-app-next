@@ -6,7 +6,7 @@ export default function LogoutButton(): JSX.Element {
   const { data: session } = useSession();
 
   if (!session) {
-    return null;
+    return <></>;
   }
 
   const handleLogout = async (): Promise<void> => {

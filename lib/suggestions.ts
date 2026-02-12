@@ -215,7 +215,7 @@ export async function findRecurringIssues(
       createdAt: tickets.createdAt
     },
     orderBy: [desc(tickets.createdAt)]
-  });
+  }) as any[];
 
   // Extract keywords from all tickets and count occurrences
   const keywordCounts = new Map<string, {

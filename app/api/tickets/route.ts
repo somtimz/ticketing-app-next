@@ -23,12 +23,10 @@ export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
     const limit = parseInt(searchParams.get('limit') || '50');
-    const mine = searchParams.get('mine') === 'true';
     const status = searchParams.get('status');
 
     // Build WHERE clause based on user role and department
     const userId = parseInt(session.user.id);
-    const userRole = session.user.role as string;
 
     // Get user's department
     const user = await db.query.users.findFirst({
@@ -84,6 +82,7 @@ export async function GET(req: NextRequest) {
         status: tickets.status,
         slaFirstResponseDue: tickets.slaFirstResponseDue,
         slaResolutionDue: tickets.slaResolutionDue,
+        lastActivityAt: tickets.lastActivityAt,
         createdAt: tickets.createdAt,
         updatedAt: tickets.updatedAt,
         resolvedAt: tickets.resolvedAt,
@@ -124,6 +123,7 @@ export async function GET(req: NextRequest) {
       status: ticket.status,
       slaFirstResponseDue: ticket.slaFirstResponseDue,
       slaResolutionDue: ticket.slaResolutionDue,
+      lastActivityAt: ticket.lastActivityAt ?? null,
       createdAt: ticket.createdAt,
       updatedAt: ticket.updatedAt,
       resolvedAt: ticket.resolvedAt,
@@ -153,7 +153,9 @@ export async function GET(req: NextRequest) {
             fullName: ticket.assignedAgent.fullName,
             email: ticket.assignedAgent.email
           }
-        : null
+        : null,
+      department: null,
+      guestUser: null
     }));
 
     return NextResponse.json({ tickets: typedResult });
@@ -255,11 +257,10 @@ export async function POST(req: NextRequest) {
     const slaDueDates = calculateSLADueDates(priority, createdAt);
 
     // Determine initial status and assignment
-    let initialStatus = 'Open';
     let assignedAgentId: number | null = null;
 
     // Create ticket
-    const newTicket = await db
+    const newTicketRows = await db
       .insert(tickets)
       .values({
         ticketNumber,
@@ -269,21 +270,24 @@ export async function POST(req: NextRequest) {
         impact: validatedData.impact,
         urgency: validatedData.urgency,
         priority,
-        status: initialStatus as any,
+        status: 'New' as const,
         callerId,
         assignedAgentId,
         slaFirstResponseDue: slaDueDates.firstResponseDue,
         slaResolutionDue: slaDueDates.resolutionDue
       })
       .returning();
+    const newTicket = newTicketRows as any[];
 
     // Create initial call record
     await db.insert(calls).values({
       ticketId: newTicket[0].id,
       callerId,
       agentId: Number.parseInt(session.user.id, 10),
-      callType: 'inbound',
-      notes: 'Initial ticket creation'
+      callDirection: 'inbound' as const,
+      notes: 'Initial ticket creation',
+      duration: 0,
+      callOutcome: 'follow_up' as const
     });
 
     // Send email notifications
@@ -313,7 +317,7 @@ export async function POST(req: NextRequest) {
           createdTicket.title,
           createdTicket.priority,
           createdTicket.id,
-          session.user.fullName || 'System'
+          (session.user as any).fullName || 'System'
         );
       }
     }
