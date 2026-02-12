@@ -47,3 +47,4 @@ nul
 # git worktrees
 .worktrees/
 .claude/.mcp.json
+.claude/mcpbackup,json
