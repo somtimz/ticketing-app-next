@@ -14,7 +14,12 @@ vi.mock('@/lib/db', () => ({
   db: {
     select: vi.fn(),
     update: vi.fn(),
-    insert: vi.fn()
+    insert: vi.fn(),
+    query: {
+      tickets: {
+        findFirst: vi.fn()
+      }
+    }
   }
 }));
 
@@ -42,7 +47,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
     it('returns 401 when not authenticated', async () => {
       vi.mocked(auth).mockResolvedValueOnce(null);
 
-      const mockRequest = createMockRequest('1', { status: 'In Progress' });
+      const mockRequest = createMockRequest('1', { status: 'InProgress' });
       const response = await PATCH(mockRequest as any, {
         params: Promise.resolve({ id: '1' })
       });
@@ -62,7 +67,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
             limit: vi.fn().mockResolvedValueOnce([
               {
                 id: 1,
-                status: 'Open',
+                status: 'New',
                 callerId: 999, // Different user
                 assignedAgentId: null
               }
@@ -84,7 +89,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
       });
       vi.mocked(db.insert).mockReturnValue(mockInsert() as any);
 
-      const mockRequest = createMockRequest('1', { status: 'In Progress' });
+      const mockRequest = createMockRequest('1', { status: 'InProgress' });
       const response = await PATCH(mockRequest as any, {
         params: Promise.resolve({ id: '1' })
       });
@@ -104,7 +109,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
             limit: vi.fn().mockResolvedValueOnce([
               {
                 id: 1,
-                status: 'Open',
+                status: 'New',
                 callerId: 1, // Same user
                 assignedAgentId: null
               }
@@ -126,7 +131,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
       });
       vi.mocked(db.insert).mockReturnValue(mockInsert() as any);
 
-      const mockRequest = createMockRequest('1', { status: 'In Progress' });
+      const mockRequest = createMockRequest('1', { status: 'InProgress' });
       const response = await PATCH(mockRequest as any, {
         params: Promise.resolve({ id: '1' })
       });
@@ -144,7 +149,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
             limit: vi.fn().mockResolvedValueOnce([
               {
                 id: 1,
-                status: 'In Progress',
+                status: 'InProgress',
                 callerId: 999,
                 assignedAgentId: 5 // Assigned to this agent
               }
@@ -184,7 +189,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
             limit: vi.fn().mockResolvedValueOnce([
               {
                 id: 1,
-                status: 'Open',
+                status: 'New',
                 callerId: 999,
                 assignedAgentId: 10 // Not assigned to this agent
               }
@@ -206,7 +211,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
       });
       vi.mocked(db.insert).mockReturnValue(mockInsert() as any);
 
-      const mockRequest = createMockRequest('1', { status: 'In Progress' });
+      const mockRequest = createMockRequest('1', { status: 'InProgress' });
       const response = await PATCH(mockRequest as any, {
         params: Promise.resolve({ id: '1' })
       });
@@ -224,7 +229,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
             limit: vi.fn().mockResolvedValueOnce([
               {
                 id: 1,
-                status: 'Open',
+                status: 'New',
                 callerId: 999,
                 assignedAgentId: 5
               }
@@ -246,7 +251,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
       });
       vi.mocked(db.insert).mockReturnValue(mockInsert() as any);
 
-      const mockRequest = createMockRequest('1', { status: 'In Progress' });
+      const mockRequest = createMockRequest('1', { status: 'InProgress' });
       const response = await PATCH(mockRequest as any, {
         params: Promise.resolve({ id: '1' })
       });
@@ -264,7 +269,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
             limit: vi.fn().mockResolvedValueOnce([
               {
                 id: 1,
-                status: 'Open',
+                status: 'New',
                 callerId: 999,
                 assignedAgentId: 5
               }
@@ -286,7 +291,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
       });
       vi.mocked(db.insert).mockReturnValue(mockInsert() as any);
 
-      const mockRequest = createMockRequest('1', { status: 'In Progress' });
+      const mockRequest = createMockRequest('1', { status: 'InProgress' });
       const response = await PATCH(mockRequest as any, {
         params: Promise.resolve({ id: '1' })
       });
@@ -334,18 +339,18 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
       });
     };
 
-    it('allows valid transition: Open -> In Progress', async () => {
-      const response = await setupAuthenticatedRequest('Open', 'In Progress');
+    it('allows valid transition: New -> InProgress', async () => {
+      const response = await setupAuthenticatedRequest('New', 'InProgress');
       expect(response.status).not.toBe(400);
     });
 
-    it('allows valid transition: In Progress -> Resolved', async () => {
-      const response = await setupAuthenticatedRequest('In Progress', 'Resolved');
+    it('allows valid transition: InProgress -> Resolved', async () => {
+      const response = await setupAuthenticatedRequest('InProgress', 'Resolved');
       expect(response.status).not.toBe(400);
     });
 
-    it('allows valid transition: Resolved -> Open (reopened)', async () => {
-      const response = await setupAuthenticatedRequest('Resolved', 'Open');
+    it('allows valid transition: Resolved -> InProgress (reopened)', async () => {
+      const response = await setupAuthenticatedRequest('Resolved', 'InProgress');
       expect(response.status).not.toBe(400);
     });
 
@@ -354,27 +359,27 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
       expect(response.status).not.toBe(400);
     });
 
-    it('allows valid transition: Closed -> Open (reopened)', async () => {
-      const response = await setupAuthenticatedRequest('Closed', 'Open');
+    it('allows valid transition: Closed -> InProgress (reopened)', async () => {
+      const response = await setupAuthenticatedRequest('Closed', 'InProgress');
       expect(response.status).not.toBe(400);
     });
 
-    it('rejects invalid transition: Open -> Resolved', async () => {
-      const response = await setupAuthenticatedRequest('Open', 'Resolved');
+    it('rejects invalid transition: New -> Resolved', async () => {
+      const response = await setupAuthenticatedRequest('New', 'Resolved');
       expect(response.status).toBe(400);
       const data = await response.json();
       expect(data.error).toBe('invalid_status_transition');
     });
 
-    it('rejects invalid transition: Open -> Closed', async () => {
-      const response = await setupAuthenticatedRequest('Open', 'Closed');
+    it('rejects invalid transition: New -> Closed', async () => {
+      const response = await setupAuthenticatedRequest('New', 'Closed');
       expect(response.status).toBe(400);
       const data = await response.json();
       expect(data.error).toBe('invalid_status_transition');
     });
 
-    it('rejects invalid transition: In Progress -> Open', async () => {
-      const response = await setupAuthenticatedRequest('In Progress', 'Open');
+    it('rejects invalid transition: InProgress -> New', async () => {
+      const response = await setupAuthenticatedRequest('InProgress', 'New');
       expect(response.status).toBe(400);
       const data = await response.json();
       expect(data.error).toBe('invalid_status_transition');
@@ -417,10 +422,10 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
         params: Promise.resolve({ id: '1' })
       });
 
-      // Should fail validation (Pending is not in schema enum)
+      // Pending is now a valid status value but not a valid transition from Resolved
       expect(response.status).toBe(400);
       const data = await response.json();
-      expect(data.error).toBe('validation_error');
+      expect(data.error).toBe('invalid_status_transition');
     });
   });
 
@@ -435,7 +440,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
             limit: vi.fn().mockResolvedValueOnce([
               {
                 id: 1,
-                status: 'In Progress',
+                status: 'InProgress',
                 callerId: 999,
                 assignedAgentId: 5
               }
@@ -551,7 +556,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
       });
       vi.mocked(db.insert).mockReturnValue(mockInsert() as any);
 
-      const mockRequest = createMockRequest('1', { status: 'Open' });
+      const mockRequest = createMockRequest('1', { status: 'InProgress' });
       const response = await PATCH(mockRequest as any, {
         params: Promise.resolve({ id: '1' })
       });
@@ -596,7 +601,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
       });
       vi.mocked(db.insert).mockReturnValue(mockInsert() as any);
 
-      const mockRequest = createMockRequest('1', { status: 'Open' });
+      const mockRequest = createMockRequest('1', { status: 'InProgress' });
       const response = await PATCH(mockRequest as any, {
         params: Promise.resolve({ id: '1' })
       });
@@ -611,7 +616,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
       const adminSession = createSession('Admin', '100');
       vi.mocked(auth).mockResolvedValueOnce(adminSession as any);
 
-      const mockRequest = createMockRequest('invalid', { status: 'In Progress' });
+      const mockRequest = createMockRequest('invalid', { status: 'InProgress' });
       const response = await PATCH(mockRequest as any, {
         params: Promise.resolve({ id: 'invalid' })
       });
@@ -634,7 +639,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
       });
       vi.mocked(db.select).mockImplementation(mockDbSelect as any);
 
-      const mockRequest = createMockRequest('999', { status: 'In Progress' });
+      const mockRequest = createMockRequest('999', { status: 'InProgress' });
       const response = await PATCH(mockRequest as any, {
         params: Promise.resolve({ id: '999' })
       });
@@ -666,7 +671,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
             limit: vi.fn().mockResolvedValueOnce([
               {
                 id: 1,
-                status: 'Open',
+                status: 'New',
                 callerId: 999,
                 assignedAgentId: 5
               }
@@ -688,7 +693,8 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
       });
       vi.mocked(db.insert).mockReturnValue(mockInsert() as any);
 
-      const validStatuses = ['Open', 'In Progress', 'Resolved', 'Closed'];
+      // Test statuses valid from 'New': same status (no transition check), Assigned, InProgress
+      const validStatuses = ['New', 'Assigned', 'InProgress'];
       for (const status of validStatuses) {
         const mockRequest = createMockRequest('1', { status });
         const response = await PATCH(mockRequest as any, {
@@ -711,7 +717,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
             limit: vi.fn().mockResolvedValueOnce([
               {
                 id: 1,
-                status: 'Open',
+                status: 'New',
                 callerId: 999,
                 assignedAgentId: 5
               }
@@ -738,7 +744,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
       vi.mocked(db.insert).mockReturnValue(mockInsert() as any);
 
       const mockRequest = createMockRequest('1', {
-        status: 'In Progress',
+        status: 'InProgress',
         notes: 'Working on this issue'
       });
       const response = await PATCH(mockRequest as any, {
@@ -761,7 +767,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
             limit: vi.fn().mockResolvedValueOnce([
               {
                 id: 1,
-                status: 'Open',
+                status: 'New',
                 callerId: 999,
                 assignedAgentId: 5
               }
@@ -788,7 +794,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
       vi.mocked(db.insert).mockReturnValue(mockInsert() as any);
 
       const mockRequest = createMockRequest('1', {
-        status: 'In Progress',
+        status: 'InProgress',
         notes: 'Started working on ticket'
       });
       const response = await PATCH(mockRequest as any, {
@@ -798,8 +804,8 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
       expect(response.status).toBe(200);
       expect(capturedInsertData).toMatchObject({
         ticketId: 1,
-        fromStatus: 'Open',
-        toStatus: 'In Progress',
+        fromStatus: 'New',
+        toStatus: 'InProgress',
         changedBy: 100,
         notes: 'Started working on ticket'
       });
@@ -817,7 +823,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
             limit: vi.fn().mockResolvedValueOnce([
               {
                 id: 1,
-                status: 'Open',
+                status: 'New',
                 callerId: 999,
                 assignedAgentId: 5
               }
@@ -839,7 +845,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
       });
       vi.mocked(db.insert).mockReturnValue(mockInsert() as any);
 
-      const mockRequest = createMockRequest('1', { status: 'In Progress' });
+      const mockRequest = createMockRequest('1', { status: 'InProgress' });
       const response = await PATCH(mockRequest as any, {
         params: Promise.resolve({ id: '1' })
       });
@@ -849,8 +855,8 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
       expect(data).toMatchObject({
         success: true,
         ticketId: 1,
-        previousStatus: 'Open',
-        newStatus: 'In Progress'
+        previousStatus: 'New',
+        newStatus: 'InProgress'
       });
     });
   });
