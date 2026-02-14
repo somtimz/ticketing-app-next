@@ -64,11 +64,21 @@ lib/
 app/
 ├── api/                 # Next.js API routes
 │   ├── auth/            # NextAuth endpoints
-│   ├── tickets/         # Ticket CRUD + actions
+│   ├── tickets/         # Ticket CRUD + actions (assign, resolve, status, comments, attachments)
 │   ├── calls/           # Phone call logging
-│   ├── kb/              # Knowledge base
+│   ├── agents/          # List assignable agents (Agent+)
+│   ├── categories/      # Category list
+│   ├── users/           # User management (Admin)
+│   ├── kb/
+│   │   ├── articles/    # KB CRUD (list, create, get, edit, delete, feedback)
+│   │   └── search/      # Full-text KB search
 │   └── analytics/       # Reporting endpoints
-└── dashboard/           # Page components by role
+└── dashboard/
+    ├── issue-logging/   # Ticket list, detail, new ticket
+    ├── my-tickets/      # Employee's own tickets
+    ├── all-tickets/     # All tickets (Agent+)
+    ├── kb/              # Knowledge base (browse, view, new, edit)
+    └── agents/          # Agent management (Admin)
 ```
 
 ## Docs Structure

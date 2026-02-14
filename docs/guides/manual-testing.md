@@ -10,7 +10,9 @@ This document provides comprehensive test scenarios for manually testing the IT 
 4. [Ticket Status Update Tests](#ticket-status-update-tests)
 5. [SLA Tracking Tests](#sla-tracking-tests)
 6. [Permission Tests](#permission-tests)
-7. [Test Data Reference](#test-data-reference)
+7. [Knowledge Base Tests](#knowledge-base-tests)
+8. [Ticket Assignment Tests](#ticket-assignment-tests)
+9. [Test Data Reference](#test-data-reference)
 
 ---
 
@@ -1369,6 +1371,275 @@ SELECT COUNT(*) as totalTickets FROM tickets;
 
 ---
 
+## Knowledge Base Tests
+
+### Test 7.1: Browse KB as Employee
+
+**Steps:**
+1. Login as `employee1@company.com`
+2. Navigate to `/dashboard/kb`
+
+**Expected Results:**
+- "Knowledge Base" nav link is visible in the sidebar
+- 8 published articles are listed (not the draft MFA article)
+- No "New Article" button is visible
+- Search box and category filter are present
+
+**Actual Results:**
+- Pass/Fail: _____________
+- Notes: _______________________________________________
+
+---
+
+### Test 7.2: Browse KB as Agent
+
+**Steps:**
+1. Login as `agent1@company.com`
+2. Navigate to `/dashboard/kb`
+
+**Expected Results:**
+- All 9 articles visible including "Draft: Configuring Multi-Factor Authentication (MFA)"
+- Draft article shows a yellow "Draft" badge
+- "New Article" button is visible
+
+**Actual Results:**
+- Pass/Fail: _____________
+- Notes: _______________________________________________
+
+---
+
+### Test 7.3: Search Articles
+
+**Steps:**
+1. Login as any user
+2. Navigate to `/dashboard/kb`
+3. Type "VPN" in the search box (wait ~300ms for debounce)
+
+**Expected Results:**
+- Results filter to articles containing "VPN" in title or content
+- "Setting Up VPN on Windows" and "Troubleshooting Wi-Fi Connectivity Issues" appear
+
+**Actual Results:**
+- Pass/Fail: _____________
+- Notes: _______________________________________________
+
+---
+
+### Test 7.4: View Article and Submit Feedback
+
+**Steps:**
+1. Login as `employee1@company.com`
+2. Open "How to Reset Your Password"
+3. Click 👍 **Yes** button
+
+**Expected Results:**
+- Helpful count increments by 1
+- Button turns green and becomes disabled
+- "Thanks for your feedback!" message shown
+- Refreshing the page: button remains disabled (localStorage)
+
+**Actual Results:**
+- Pass/Fail: _____________
+- Notes: _______________________________________________
+
+---
+
+### Test 7.5: Prevent Re-voting
+
+**Steps:**
+1. (Continuing from Test 7.4 — already voted)
+2. Attempt to click 👎 **No** button
+
+**Expected Results:**
+- Both buttons are disabled
+- Cannot submit a second vote
+
+**Actual Results:**
+- Pass/Fail: _____________
+- Notes: _______________________________________________
+
+---
+
+### Test 7.6: Create Article (Agent)
+
+**Steps:**
+1. Login as `agent1@company.com`
+2. Navigate to `/dashboard/kb` → click **New Article**
+3. Fill in:
+   - Title: "Test Article"
+   - Category: Hardware
+   - Content: `# Hello\nThis is **markdown**.`
+   - Leave "Published" unchecked
+4. Submit
+
+**Expected Results:**
+- Redirected to new article view page
+- Article shows "Draft" badge
+- Markdown rendered (bold text, heading)
+- Edit button visible
+- Not visible to employees (unpublished)
+
+**Actual Results:**
+- Pass/Fail: _____________
+- Notes: _______________________________________________
+
+---
+
+### Test 7.7: Edit Article
+
+**Steps:**
+1. Login as `agent1@company.com`
+2. Open the article created in Test 7.6
+3. Click **Edit**
+4. Check the **Published** checkbox
+5. Save
+
+**Expected Results:**
+- Redirected back to article view
+- "Draft" badge is gone
+- Article now visible to employees
+
+**Actual Results:**
+- Pass/Fail: _____________
+- Notes: _______________________________________________
+
+---
+
+### Test 7.8: Edit Permission — Agent Cannot Edit Others' Articles
+
+**Steps:**
+1. Login as `agent2@company.com`
+2. Navigate to the article created by agent1 in Test 7.6
+3. Verify no Edit button is shown
+
+**Expected Results:**
+- Edit button is NOT visible
+- Attempting to navigate directly to `/dashboard/kb/[id]/edit` redirects back to the article view
+
+**Actual Results:**
+- Pass/Fail: _____________
+- Notes: _______________________________________________
+
+---
+
+### Test 7.9: Admin Can Edit Any Article
+
+**Steps:**
+1. Login as `admin@company.com`
+2. Open any article not created by admin
+3. Click **Edit**, make a minor change, save
+
+**Expected Results:**
+- Edit button IS visible
+- Changes saved successfully
+
+**Actual Results:**
+- Pass/Fail: _____________
+- Notes: _______________________________________________
+
+---
+
+### Test 7.10: "Still Need Help?" CTA
+
+**Steps:**
+1. Open any KB article
+2. Click **"Create a support ticket"** link at the bottom
+
+**Expected Results:**
+- Navigates to `/dashboard/issue-logging/new`
+
+**Actual Results:**
+- Pass/Fail: _____________
+- Notes: _______________________________________________
+
+---
+
+## Ticket Assignment Tests
+
+### Test 8.1: Employee Cannot See Assign Form
+
+**Steps:**
+1. Login as `employee1@company.com`
+2. Open one of their tickets (e.g., from My Tickets)
+3. Scroll to the Actions panel
+
+**Expected Results:**
+- No "Assign Ticket" or "Reassign Ticket" section visible
+
+**Actual Results:**
+- Pass/Fail: _____________
+- Notes: _______________________________________________
+
+---
+
+### Test 8.2: Agent Can Assign an Unassigned Ticket
+
+**Steps:**
+1. Login as `agent1@company.com`
+2. Open an unassigned ticket (e.g., from All Tickets)
+3. In the Actions panel, locate "Assign Ticket"
+4. Select `agent2@company.com` from the dropdown
+5. Click **Assign**
+
+**Expected Results:**
+- "Assigned Agent" in the Caller Information panel updates to "Michael Chen"
+- Section heading changes to "Reassign Ticket"
+- Current assignee note appears below the heading
+
+**Actual Results:**
+- Pass/Fail: _____________
+- Notes: _______________________________________________
+
+---
+
+### Test 8.3: Team Lead Can Reassign a Ticket
+
+**Steps:**
+1. Login as `teamlead1@company.com`
+2. Open a ticket already assigned to agent1
+3. Select `agent3@company.com` from the reassign dropdown
+4. Click **Assign**
+
+**Expected Results:**
+- Assigned agent updates to "Emily Davis"
+- Audit trail recorded (visible in DB)
+
+**Verification:**
+```sql
+SELECT changes FROM audit_log
+WHERE action = 'reassigned'
+ORDER BY id DESC LIMIT 1;
+```
+
+**Actual Results:**
+- Pass/Fail: _____________
+- Notes: _______________________________________________
+
+---
+
+### Test 8.4: Assign API Rejects Employees
+
+**Steps:**
+1. Login as `employee1@company.com`
+2. In DevTools console, run:
+```javascript
+fetch('/api/tickets/1/assign', {
+  method: 'PUT',
+  headers: {'Content-Type': 'application/json'},
+  body: JSON.stringify({ agentId: 3 })
+}).then(r => console.log(r.status))
+```
+
+**Expected Results:**
+- Response status: **403 Forbidden**
+- Ticket assignment unchanged
+
+**Actual Results:**
+- HTTP Status: _____ (expected: 403)
+- Pass/Fail: _____________
+
+---
+
 ## Test Data Reference
 
 ### Seed Data Summary
@@ -1561,11 +1832,29 @@ Use this checklist to track your testing progress:
 - [ ] 5.4c Admin Manage SLA Policies
 - [ ] 5.4d Admin Full Access
 
+### Knowledge Base (10 tests)
+- [ ] 7.1 Browse KB as Employee (8 articles, no New button)
+- [ ] 7.2 Browse KB as Agent (9 articles with draft, New button)
+- [ ] 7.3 Search Articles
+- [ ] 7.4 View Article and Submit Feedback
+- [ ] 7.5 Prevent Re-voting
+- [ ] 7.6 Create Article (Agent)
+- [ ] 7.7 Edit Article
+- [ ] 7.8 Agent Cannot Edit Others' Articles
+- [ ] 7.9 Admin Can Edit Any Article
+- [ ] 7.10 "Still Need Help?" CTA
+
+### Ticket Assignment (4 tests)
+- [ ] 8.1 Employee Cannot See Assign Form
+- [ ] 8.2 Agent Can Assign Unassigned Ticket
+- [ ] 8.3 Team Lead Can Reassign Ticket
+- [ ] 8.4 Assign API Rejects Employees
+
 ---
 
 ## Test Summary
 
-**Total Tests:** 46
+**Total Tests:** 60
 
 **Test Distribution:**
 - Authentication: 7 tests
@@ -1573,6 +1862,8 @@ Use this checklist to track your testing progress:
 - Status Updates: 13 tests
 - SLA Tracking: 9 tests
 - Permissions: 17 tests
+- Knowledge Base: 10 tests
+- Ticket Assignment: 4 tests
 
 **Pass/Fail Tracking:**
 - Total Passed: _____

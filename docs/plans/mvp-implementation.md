@@ -1,8 +1,64 @@
 # IT Help Desk MVP Implementation Plan
 
 > **Timeline:** 4-6 weeks (MVP Launch)
-> **Status:** Ready to Begin
-> **Updated:** 2025-02-07
+> **Status:** ✅ MVP Complete
+> **Updated:** 2026-02-13
+
+---
+
+## What's Been Built
+
+All MVP phases are complete. The application is running with the following features implemented:
+
+### Core Infrastructure
+- Next.js 15 App Router · React 19 · Drizzle ORM · SQLite (dev) · NextAuth v5
+- Role-based access: Employee < Agent < TeamLead < Admin (`lib/rbac.ts`)
+- Zod validation schemas (`lib/validators.ts`)
+- API error helpers (`lib/api-error.ts`)
+- SLA calculation utilities (`lib/sla.ts`)
+
+### Ticket Management
+- Full CRUD: `app/api/tickets/`, `app/api/tickets/[id]/`
+- Priority auto-calculated from Impact × Urgency matrix → P1–P4
+- SLA due dates calculated at creation time
+- Status flow: New → Assigned → InProgress → Pending → Resolved → Closed
+- Ticket assignment/reassignment: `app/api/tickets/[id]/assign/` + UI in ticket detail
+- Resolve with resolution notes: `app/api/tickets/[id]/resolve/`
+- Status history tracking: `app/api/tickets/[id]/status/`
+- Comments (internal/external): `app/api/tickets/[id]/comments/`
+- File attachments: `app/api/tickets/[id]/attachments/`
+
+### Phone Call Logging
+- Agents can log calls against tickets: `app/api/calls/`
+- Fields: direction, duration, outcome, notes
+
+### Knowledge Base
+- Full CRUD API: `app/api/kb/articles/`, `app/api/kb/articles/[id]/`
+- Full-text search: `app/api/kb/search/`
+- Helpful/not-helpful feedback: `app/api/kb/articles/[id]/feedback/`
+- Browse, view, create, edit UI under `app/dashboard/kb/`
+- Markdown rendering via `react-markdown`
+- Role-gated: Employees see published only; Agent+ see drafts + can create; Admin can delete
+- Feedback suppressed after vote via localStorage
+
+### Agent Assignment
+- `GET /api/agents` — list assignable users (Agent+)
+- Assign/Reassign form on ticket detail page (visible to Agent+)
+
+### Automation
+- Auto-close cron: `app/api/cron/auto-close/`
+- SLA monitor cron: `app/api/cron/sla-monitor/`
+- Similar ticket suggestions: `app/api/tickets/suggest/`
+
+### Analytics
+- Recurring issues: `app/api/analytics/recurring/`
+- Agent workloads: `app/api/analytics/workloads/`
+
+### Seed Data
+- 11 users, 18 tickets, 4 categories, 4 SLA policies, 9 KB articles (8 published, 1 draft)
+- Run: `npm run db:seed`
+
+---
 
 ---
 
