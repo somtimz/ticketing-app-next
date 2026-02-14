@@ -768,6 +768,399 @@ async function seed(): Promise<void> {
   console.log(`  ✓ ${statusHistoryData.length} Status history entries created`);
 
   // ========================================
+  // KNOWLEDGE BASE ARTICLES
+  // ========================================
+
+  console.log('Inserting KB articles...');
+
+  // Re-fetch user IDs we need
+  const kbAgents = await db
+    .select({ id: schema.users.id, email: schema.users.email })
+    .from(schema.users)
+    .where(eq(schema.users.isActive, true));
+
+  const agentById = Object.fromEntries(kbAgents.map(u => [u.email, u.id]));
+  const agent1Id = agentById['agent1@company.com'];
+  const agent2Id = agentById['agent2@company.com'];
+  const agent3Id = agentById['agent3@company.com'];
+  const adminId  = agentById['admin@company.com'];
+
+  const kbCategories = await db
+    .select({ id: schema.categories.id, name: schema.categories.name })
+    .from(schema.categories);
+
+  const catByName = Object.fromEntries(kbCategories.map(c => [c.name, c.id]));
+  const hwCatId  = catByName['Hardware'];
+  const swCatId  = catByName['Software'];
+  const netCatId = catByName['Network'];
+  const accCatId = catByName['Access & Permissions'];
+
+  const kbArticles = [
+    {
+      title: 'How to Reset Your Password',
+      content: `# How to Reset Your Password
+
+Follow these steps to reset your account password.
+
+## Self-Service Reset (Recommended)
+
+1. Go to the login page and click **"Forgot Password"**
+2. Enter your company email address
+3. Check your inbox for a reset link (expires in 30 minutes)
+4. Click the link and choose a new password
+
+## Password Requirements
+
+- Minimum **12 characters**
+- At least one uppercase letter, one number, and one special character
+- Cannot reuse your last 5 passwords
+
+## Locked Out?
+
+If your account is locked after too many failed attempts, contact the help desk or submit a ticket — an agent can unlock it within minutes.
+
+> **Tip:** Use a password manager to keep track of complex passwords securely.`,
+      categoryId: accCatId,
+      createdBy: agent1Id,
+      isPublished: true,
+      helpfulCount: 24,
+      notHelpfulCount: 2,
+      viewCount: 312
+    },
+    {
+      title: 'Setting Up VPN on Windows',
+      content: `# Setting Up VPN on Windows
+
+This guide walks you through installing and configuring the company VPN client on Windows 10/11.
+
+## Prerequisites
+
+- Windows 10 (version 1903+) or Windows 11
+- Company credentials
+- VPN installer from the IT portal (or request via ticket)
+
+## Installation
+
+1. Download **CompanyVPN-Setup.exe** from the IT software portal
+2. Run as Administrator and follow the installer prompts
+3. Restart your computer when prompted
+
+## First-Time Configuration
+
+1. Open the VPN client from the system tray
+2. Enter the server address provided by IT: \`vpn.company.com\`
+3. Log in with your **company email and password**
+4. Select the **"Full Tunnel"** profile for remote work
+
+## Connecting / Disconnecting
+
+- Click the VPN icon in the system tray → **Connect**
+- To disconnect: tray icon → **Disconnect**
+- The VPN auto-reconnects on network changes
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| Can't connect | Check your internet connection; try restarting the VPN client |
+| Authentication failed | Verify your password hasn't expired |
+| Slow speeds | Switch to the **"Split Tunnel"** profile |
+
+Still having issues? [Submit a support ticket](/dashboard/issue-logging/new).`,
+      categoryId: netCatId,
+      createdBy: agent1Id,
+      isPublished: true,
+      helpfulCount: 41,
+      notHelpfulCount: 3,
+      viewCount: 580
+    },
+    {
+      title: 'Requesting Software Installation',
+      content: `# Requesting Software Installation
+
+Need new software on your machine? Here's how to get it approved and installed.
+
+## Standard Software (Pre-Approved List)
+
+The following can be installed immediately via the **Self-Service Portal**:
+
+- Microsoft Office suite
+- Adobe Acrobat Reader
+- Zoom / Teams
+- 7-Zip, Notepad++, VS Code
+
+Visit the IT Portal → **Software Catalog** to install these yourself.
+
+## Non-Standard Software
+
+For software not on the pre-approved list:
+
+1. Submit a ticket with category **Software**
+2. Include:
+   - Software name and version
+   - Business justification
+   - Vendor website / download link
+3. Your manager will receive an approval request
+4. Once approved, an agent will install it (typically within 1–2 business days)
+
+## Licensing
+
+IT maintains all software licenses. Do **not** purchase or install personal software licenses on company hardware — this creates compliance risks.
+
+## macOS Users
+
+The same process applies. Note that some Windows-only tools may have macOS alternatives — ask your agent.`,
+      categoryId: swCatId,
+      createdBy: agent2Id,
+      isPublished: true,
+      helpfulCount: 18,
+      notHelpfulCount: 1,
+      viewCount: 204
+    },
+    {
+      title: 'Troubleshooting Wi-Fi Connectivity Issues',
+      content: `# Troubleshooting Wi-Fi Connectivity Issues
+
+Before submitting a ticket, try these steps to resolve common Wi-Fi problems.
+
+## Step 1 — Forget and Reconnect
+
+1. Click the Wi-Fi icon in the taskbar
+2. Right-click the network → **Forget**
+3. Reconnect and re-enter credentials if prompted
+
+## Step 2 — Restart Network Adapter
+
+Open PowerShell as Administrator and run:
+
+\`\`\`powershell
+Disable-NetAdapter -Name "Wi-Fi" -Confirm:$false
+Start-Sleep -Seconds 3
+Enable-NetAdapter -Name "Wi-Fi"
+\`\`\`
+
+## Step 3 — Flush DNS
+
+\`\`\`cmd
+ipconfig /flushdns
+ipconfig /release
+ipconfig /renew
+\`\`\`
+
+## Step 4 — Check for IP Conflicts
+
+Run \`ipconfig /all\` and confirm you have a valid IP (not 169.254.x.x). A 169.254 address indicates DHCP failure — contact the help desk.
+
+## Still Not Working?
+
+Check the **IT Status Page** for any known outages. If none exist, submit a ticket with:
+- Your location / floor
+- Device name (Settings → About)
+- Error message (if any)`,
+      categoryId: netCatId,
+      createdBy: agent3Id,
+      isPublished: true,
+      helpfulCount: 33,
+      notHelpfulCount: 5,
+      viewCount: 447
+    },
+    {
+      title: 'New Employee IT Onboarding Checklist',
+      content: `# New Employee IT Onboarding Checklist
+
+Welcome! This article covers everything IT sets up for new employees in your first week.
+
+## Day 1 — What IT Provides
+
+- [ ] Laptop (pre-imaged with standard software)
+- [ ] Company email account
+- [ ] Access to core systems (HR portal, Slack, Jira)
+- [ ] Badge / physical access (coordinated with Facilities)
+
+## Your Responsibility
+
+1. **Change your temporary password** on first login
+2. **Set up MFA** — go to [account.company.com](https://account.company.com) → Security → Enable Authenticator App
+3. **Install VPN** if you'll be working remotely (see [VPN setup guide](/dashboard/kb))
+4. **Bookmark** the IT Help Desk portal
+
+## Additional Access Requests
+
+Need access to specific systems (Salesforce, GitHub org, AWS)?
+
+- Ask your manager to submit an access request ticket
+- Standard access is provisioned within **1 business day**
+- Privileged access (admin rights, prod systems) requires security review
+
+## Equipment Issues
+
+If your equipment arrives damaged or is missing accessories, submit a Hardware ticket within **48 hours** of receipt.`,
+      categoryId: hwCatId,
+      createdBy: adminId,
+      isPublished: true,
+      helpfulCount: 52,
+      notHelpfulCount: 0,
+      viewCount: 891
+    },
+    {
+      title: 'Outlook Not Syncing — Common Fixes',
+      content: `# Outlook Not Syncing — Common Fixes
+
+If Outlook isn't receiving new emails or showing a "disconnected" status, try the following.
+
+## Quick Fixes
+
+1. **Check your internet** — can you browse the web?
+2. **Look at the status bar** (bottom of Outlook) — it should say "Connected"
+3. **Click Send/Receive All** (F9) to force a sync
+
+## Repair Your Profile
+
+1. Close Outlook
+2. Open **Control Panel** → **Mail** → **Show Profiles**
+3. Select your profile → **Properties** → **Email Accounts**
+4. Select your Exchange account → **Change** → **More Settings** → **Advanced**
+5. Click **Offline Folder File Settings** → verify the path is valid
+
+## Clear the Outlook Cache
+
+1. Close Outlook
+2. Navigate to \`%localappdata%\\Microsoft\\Outlook\`
+3. Rename (don't delete) the \`.ost\` file to \`.ost.old\`
+4. Reopen Outlook — it will rebuild the cache (may take a few minutes)
+
+## Re-add Your Account
+
+As a last resort, remove and re-add your email account in Outlook settings.
+
+If none of these work, submit a **Software** ticket and include your Outlook version (File → Office Account).`,
+      categoryId: swCatId,
+      createdBy: agent2Id,
+      isPublished: true,
+      helpfulCount: 29,
+      notHelpfulCount: 4,
+      viewCount: 376
+    },
+    {
+      title: 'Requesting Access to Shared Drives and Folders',
+      content: `# Requesting Access to Shared Drives and Folders
+
+To request access to a shared network drive or SharePoint folder, follow this process.
+
+## What You Need to Know First
+
+- Access is granted based on **business need** and **manager approval**
+- Some folders require department head sign-off
+- Access is reviewed quarterly and removed when no longer needed
+
+## How to Submit a Request
+
+1. Submit a ticket with category **Access & Permissions**
+2. Include:
+   - **Drive/folder path** or SharePoint URL
+   - **Access level needed**: Read-only or Read/Write
+   - **Business reason** (1–2 sentences)
+   - **Your manager's name** (they'll be cc'd for approval)
+
+## Turnaround Time
+
+| Access Type | SLA |
+|-------------|-----|
+| Standard shared drive | 4 business hours |
+| SharePoint site | 4 business hours |
+| Sensitive/restricted folder | 1–2 business days (requires approval chain) |
+
+## Removing Access
+
+When someone leaves a team or project, managers should submit an access **removal** request to maintain security hygiene.`,
+      categoryId: accCatId,
+      createdBy: agent1Id,
+      isPublished: true,
+      helpfulCount: 15,
+      notHelpfulCount: 1,
+      viewCount: 198
+    },
+    {
+      title: 'Hardware Refresh Program — FAQ',
+      content: `# Hardware Refresh Program — FAQ
+
+IT refreshes employee hardware on a rolling 3-year cycle. Here are answers to common questions.
+
+## Am I Eligible?
+
+Check with your manager or submit a ticket asking IT to look up your device's age. Devices older than **3 years** are typically eligible.
+
+## What Do I Get?
+
+Standard refresh includes:
+- Laptop (current spec for your role)
+- Charging cable and adapter
+- Docking station (if applicable to your role)
+
+Monitors and peripherals are refreshed on a **5-year** cycle.
+
+## How Do I Request a Refresh?
+
+Submit a **Hardware** ticket with subject "Hardware Refresh Request — [Your Name]". Include your current device name (Settings → About).
+
+## Data Migration
+
+IT will schedule a 30-minute handoff session to:
+1. Back up your data to OneDrive/SharePoint
+2. Set up your new machine with standard software
+3. Verify your data is accessible before you return the old device
+
+## What Happens to the Old Device?
+
+Old devices are wiped and either redeployed (for light-duty use) or recycled through our certified e-waste vendor.`,
+      categoryId: hwCatId,
+      createdBy: agent3Id,
+      isPublished: true,
+      helpfulCount: 11,
+      notHelpfulCount: 0,
+      viewCount: 143
+    },
+    {
+      title: 'Draft: Configuring Multi-Factor Authentication (MFA)',
+      content: `# Configuring Multi-Factor Authentication (MFA)
+
+> **Note:** This article is in draft — screenshots pending.
+
+MFA is required for all accounts with access to production systems.
+
+## Supported Methods
+
+1. **Authenticator App** (recommended) — Microsoft Authenticator or Google Authenticator
+2. **SMS** — backup only, less secure
+3. **Hardware Key** — YubiKey (contact IT to request one)
+
+## Setup Steps
+
+1. Go to [account.company.com](https://account.company.com)
+2. Sign in → Security → Two-Factor Authentication
+3. Click **Set up authenticator app**
+4. Scan the QR code with your app
+5. Enter the 6-digit code to confirm
+
+## Backup Codes
+
+After setup, download and store your **backup codes** in a safe place (e.g. a password manager). These let you log in if you lose your phone.`,
+      categoryId: accCatId,
+      createdBy: agent2Id,
+      isPublished: false,
+      helpfulCount: 0,
+      notHelpfulCount: 0,
+      viewCount: 3
+    }
+  ];
+
+  for (const article of kbArticles) {
+    await db.insert(schema.knowledgeBaseArticles).values(article).onConflictDoNothing();
+  }
+
+  console.log(`  ✓ ${kbArticles.length} KB articles created (${kbArticles.filter(a => a.isPublished).length} published, ${kbArticles.filter(a => !a.isPublished).length} draft)`);
+
+  // ========================================
   // SUMMARY
   // ========================================
 
@@ -784,6 +1177,7 @@ async function seed(): Promise<void> {
   console.log('    - P3 (Medium): 5');
   console.log('    - P4 (Low): 8');
   console.log('  Ticket Status History: 17 entries');
+  console.log('  KB Articles: 9 total (8 published, 1 draft)');
   console.log('\nDefault Credentials:');
   console.log('  Admin:     admin@company.com / admin123');
   console.log('  Team Lead: teamlead1@company.com / teamlead123');
