@@ -3,16 +3,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 
-interface AgentWorkload {
-  agentId: number;
-  agentName: string;
-  workload: {
-    open: number;
-    inProgress: number;
-    pending: number;
-    resolvedToday: number;
-    slaCompliance: number;
-  };
+interface WorkloadStats {
+  open: number;
+  resolved: number;
+  closed: number;
+  total: number;
+  slaCompliance: number;
+}
+
+interface AgentWorkloadEntry {
+  agent: { id: number; fullName: string; email: string };
+  workload: WorkloadStats;
 }
 
 interface WorkloadSummary {
@@ -26,7 +27,6 @@ interface RecurringIssue {
   count: number;
   categoryName?: string;
   lastSeen: string;
-  tickets: { id: number; ticketNumber: string; title: string }[];
 }
 
 export default function AnalyticsDashboardPage(): JSX.Element {
@@ -36,9 +36,9 @@ export default function AnalyticsDashboardPage(): JSX.Element {
   const isTeamLead = userRole === 'TeamLead' || userRole === 'Admin';
   const isAgent = userRole === 'Agent' || isTeamLead;
 
-  const [workloads, setWorkloads] = useState<AgentWorkload[]>([]);
+  const [teamWorkloads, setTeamWorkloads] = useState<AgentWorkloadEntry[]>([]);
   const [summary, setSummary] = useState<WorkloadSummary | null>(null);
-  const [myWorkload, setMyWorkload] = useState<AgentWorkload | null>(null);
+  const [myStats, setMyStats] = useState<WorkloadStats | null>(null);
   const [recurring, setRecurring] = useState<RecurringIssue[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -50,37 +50,29 @@ export default function AnalyticsDashboardPage(): JSX.Element {
     try {
       const fetches: Promise<void>[] = [];
 
-      // All workloads (TeamLead+)
       if (isTeamLead) {
         fetches.push(
           fetch('/api/analytics/workloads')
             .then(r => r.json())
-            .then((d: { workloads: AgentWorkload[]; summary: WorkloadSummary }) => {
-              setWorkloads(d.workloads ?? []);
+            .then((d: { workloads: AgentWorkloadEntry[]; summary: WorkloadSummary }) => {
+              setTeamWorkloads(d.workloads ?? []);
               setSummary(d.summary ?? null);
             })
             .catch(() => {})
         );
-
-        // Recurring issues
         fetches.push(
           fetch('/api/analytics/recurring')
             .then(r => r.json())
-            .then((d: { recurring: RecurringIssue[] }) => {
-              setRecurring(d.recurring ?? []);
-            })
+            .then((d: { recurring: RecurringIssue[] }) => setRecurring(d.recurring ?? []))
             .catch(() => {})
         );
       }
 
-      // Own workload (all agents)
       if (userId) {
         fetches.push(
           fetch(`/api/analytics/workloads?agentId=${userId}`)
             .then(r => r.json())
-            .then((d: { workload: AgentWorkload }) => {
-              setMyWorkload(d.workload ?? null);
-            })
+            .then((d: { workload: WorkloadStats }) => setMyStats(d.workload ?? null))
             .catch(() => {})
         );
       }
@@ -129,10 +121,10 @@ export default function AnalyticsDashboardPage(): JSX.Element {
       </div>
 
       {/* My Workload */}
-      {myWorkload && (
+      {myStats && (
         <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-6">
           <h2 className="text-lg font-medium text-gray-900 mb-4">My Workload</h2>
-          <WorkloadRow workload={myWorkload} />
+          <WorkloadCards stats={myStats} />
         </div>
       )}
 
@@ -157,30 +149,30 @@ export default function AnalyticsDashboardPage(): JSX.Element {
                 <tr className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <th className="pb-2 pr-4">Agent</th>
                   <th className="pb-2 pr-4 text-center">Open</th>
-                  <th className="pb-2 pr-4 text-center">In Progress</th>
-                  <th className="pb-2 pr-4 text-center">Pending</th>
-                  <th className="pb-2 pr-4 text-center">Resolved Today</th>
+                  <th className="pb-2 pr-4 text-center">Resolved</th>
+                  <th className="pb-2 pr-4 text-center">Closed</th>
+                  <th className="pb-2 pr-4 text-center">Total</th>
                   <th className="pb-2 text-center">SLA %</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {workloads.map(w => (
-                  <tr key={w.agentId}>
-                    <td className="py-2 pr-4 font-medium text-gray-900">{w.agentName}</td>
-                    <td className="py-2 pr-4 text-center">{w.workload.open}</td>
-                    <td className="py-2 pr-4 text-center">{w.workload.inProgress}</td>
-                    <td className="py-2 pr-4 text-center">{w.workload.pending}</td>
-                    <td className="py-2 pr-4 text-center">{w.workload.resolvedToday}</td>
+                {teamWorkloads.map(({ agent, workload }) => (
+                  <tr key={agent.id}>
+                    <td className="py-2 pr-4 font-medium text-gray-900">{agent.fullName}</td>
+                    <td className="py-2 pr-4 text-center">{workload.open}</td>
+                    <td className="py-2 pr-4 text-center">{workload.resolved}</td>
+                    <td className="py-2 pr-4 text-center">{workload.closed}</td>
+                    <td className="py-2 pr-4 text-center">{workload.total}</td>
                     <td className="py-2 text-center">
-                      <span className={`font-medium ${w.workload.slaCompliance >= 80 ? 'text-green-600' : 'text-red-600'}`}>
-                        {w.workload.slaCompliance.toFixed(0)}%
+                      <span className={`font-medium ${workload.slaCompliance >= 80 ? 'text-green-600' : 'text-red-600'}`}>
+                        {workload.slaCompliance.toFixed(0)}%
                       </span>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {workloads.length === 0 && (
+            {teamWorkloads.length === 0 && (
               <p className="text-sm text-gray-400 italic mt-2">No agent data.</p>
             )}
           </div>
@@ -224,36 +216,33 @@ function StatCard({ label, value, highlight }: { label: string; value: string | 
   return (
     <div className="bg-gray-50 rounded-lg p-4 text-center">
       <p className="text-sm text-gray-500 mb-1">{label}</p>
-      <p className={`text-2xl font-bold ${highlight ? 'text-red-600' : 'text-gray-900'}`}>
-        {value}
-      </p>
+      <p className={`text-2xl font-bold ${highlight ? 'text-red-600' : 'text-gray-900'}`}>{value}</p>
     </div>
   );
 }
 
-function WorkloadRow({ workload }: { workload: AgentWorkload }) {
-  const w = workload.workload;
+function WorkloadCards({ stats }: { stats: WorkloadStats }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
       <div className="text-center">
-        <p className="text-2xl font-bold text-gray-900">{w.open}</p>
+        <p className="text-2xl font-bold text-blue-600">{stats.open}</p>
         <p className="text-xs text-gray-500">Open</p>
       </div>
       <div className="text-center">
-        <p className="text-2xl font-bold text-yellow-600">{w.inProgress}</p>
-        <p className="text-xs text-gray-500">In Progress</p>
+        <p className="text-2xl font-bold text-green-600">{stats.resolved}</p>
+        <p className="text-xs text-gray-500">Resolved</p>
       </div>
       <div className="text-center">
-        <p className="text-2xl font-bold text-gray-600">{w.pending}</p>
-        <p className="text-xs text-gray-500">Pending</p>
+        <p className="text-2xl font-bold text-gray-500">{stats.closed}</p>
+        <p className="text-xs text-gray-500">Closed</p>
       </div>
       <div className="text-center">
-        <p className="text-2xl font-bold text-green-600">{w.resolvedToday}</p>
-        <p className="text-xs text-gray-500">Resolved Today</p>
+        <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+        <p className="text-xs text-gray-500">Total</p>
       </div>
       <div className="text-center">
-        <p className={`text-2xl font-bold ${w.slaCompliance >= 80 ? 'text-green-600' : 'text-red-600'}`}>
-          {w.slaCompliance.toFixed(0)}%
+        <p className={`text-2xl font-bold ${stats.slaCompliance >= 80 ? 'text-green-600' : 'text-red-600'}`}>
+          {stats.slaCompliance.toFixed(0)}%
         </p>
         <p className="text-xs text-gray-500">SLA Compliance</p>
       </div>
