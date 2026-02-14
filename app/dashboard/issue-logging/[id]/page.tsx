@@ -113,6 +113,11 @@ export default function TicketDetailPage(): JSX.Element {
   const [resolution, setResolution] = useState('');
   const [isResolving, setIsResolving] = useState(false);
 
+  // Assign
+  const [agents, setAgents] = useState<{ id: number; fullName: string; role: string }[]>([]);
+  const [selectedAgentId, setSelectedAgentId] = useState('');
+  const [isAssigning, setIsAssigning] = useState(false);
+
   // Log call
   const [showCallForm, setShowCallForm] = useState(false);
   const [callDirection, setCallDirection] = useState<'inbound' | 'outbound'>('inbound');
@@ -153,6 +158,19 @@ export default function TicketDetailPage(): JSX.Element {
     void fetchTicket();
     void fetchComments();
   }, [fetchTicket, fetchComments]);
+
+  useEffect(() => {
+    if (!isAgent) return;
+    void (async () => {
+      try {
+        const res = await fetch('/api/agents');
+        const data = await res.json() as { agents: { id: number; fullName: string; role: string }[] };
+        setAgents(data.agents ?? []);
+      } catch {
+        // non-fatal
+      }
+    })();
+  }, [isAgent]);
 
   const handleStatusUpdate = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -207,6 +225,25 @@ export default function TicketDetailPage(): JSX.Element {
       }
     } finally {
       setIsPostingComment(false);
+    }
+  };
+
+  const handleAssign = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!selectedAgentId) return;
+    setIsAssigning(true);
+    try {
+      const res = await fetch(`/api/tickets/${ticketId}/assign`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId: parseInt(selectedAgentId) })
+      });
+      if (res.ok) {
+        await fetchTicket();
+        setSelectedAgentId('');
+      }
+    } finally {
+      setIsAssigning(false);
     }
   };
 
@@ -503,6 +540,42 @@ export default function TicketDetailPage(): JSX.Element {
                 </button>
               </div>
             </form>
+
+            {/* Assign / Reassign (agents only) */}
+            {isAgent && (
+              <form onSubmit={handleAssign} className="space-y-3">
+                <h3 className="text-sm font-medium text-gray-700">
+                  {ticket.assignedAgent ? 'Reassign Ticket' : 'Assign Ticket'}
+                </h3>
+                {ticket.assignedAgent && (
+                  <p className="text-xs text-gray-500">
+                    Currently assigned to <span className="font-medium text-gray-700">{ticket.assignedAgent.fullName}</span>
+                  </p>
+                )}
+                <div className="flex gap-3 flex-wrap">
+                  <select
+                    value={selectedAgentId}
+                    onChange={e => setSelectedAgentId(e.target.value)}
+                    required
+                    className="flex-1 min-w-48 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  >
+                    <option value="">Select agent...</option>
+                    {agents.map(agent => (
+                      <option key={agent.id} value={String(agent.id)}>
+                        {agent.fullName} ({agent.role})
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="submit"
+                    disabled={isAssigning || !selectedAgentId}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-md text-sm hover:bg-primary-700 disabled:opacity-50"
+                  >
+                    {isAssigning ? 'Assigning...' : 'Assign'}
+                  </button>
+                </div>
+              </form>
+            )}
 
             {/* Resolve */}
             <form onSubmit={handleResolve} className="space-y-3">
