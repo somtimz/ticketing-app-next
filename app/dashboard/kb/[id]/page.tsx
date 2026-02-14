@@ -28,8 +28,7 @@ export default function KBArticlePage(): JSX.Element {
   const [article, setArticle] = useState<KBArticle | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [helpfulCount, setHelpfulCount] = useState(0);
-  const [notHelpfulCount, setNotHelpfulCount] = useState(0);
+  // voted tracks local vote state; counts are read directly from article to avoid duplicating state
   const [voted, setVoted] = useState<'helpful' | 'not_helpful' | null>(null);
 
   const userRole = session?.user?.role as string | undefined;
@@ -48,8 +47,6 @@ export default function KBArticlePage(): JSX.Element {
         }
         const data = await res.json() as KBArticle;
         setArticle(data);
-        setHelpfulCount(data.helpfulCount);
-        setNotHelpfulCount(data.notHelpfulCount);
 
         // Check localStorage for prior vote
         const storedVote = localStorage.getItem(`kb-vote-${id}`);
@@ -74,8 +71,7 @@ export default function KBArticlePage(): JSX.Element {
       });
       if (res.ok) {
         const data = await res.json() as { helpfulCount: number; notHelpfulCount: number };
-        setHelpfulCount(data.helpfulCount);
-        setNotHelpfulCount(data.notHelpfulCount);
+        setArticle(prev => prev ? { ...prev, helpfulCount: data.helpfulCount, notHelpfulCount: data.notHelpfulCount } : null);
         setVoted(vote);
         localStorage.setItem(`kb-vote-${id}`, vote);
       }
@@ -129,7 +125,7 @@ export default function KBArticlePage(): JSX.Element {
               {article.authorName && <span>By {article.authorName}</span>}
               <span>Updated {new Date(article.updatedAt).toLocaleDateString()}</span>
               <span>{article.viewCount} views</span>
-              <span>{helpfulCount} found helpful</span>
+              <span>{article.helpfulCount} found helpful</span>
             </div>
           </div>
           {canEdit && (
@@ -165,7 +161,7 @@ export default function KBArticlePage(): JSX.Element {
                 : 'border-gray-300 text-gray-700 hover:bg-gray-50'
             }`}
           >
-            👍 Yes ({helpfulCount})
+            👍 Yes ({article.helpfulCount})
           </button>
           <button
             onClick={() => void handleFeedback('not_helpful')}
@@ -178,7 +174,7 @@ export default function KBArticlePage(): JSX.Element {
                 : 'border-gray-300 text-gray-700 hover:bg-gray-50'
             }`}
           >
-            👎 No ({notHelpfulCount})
+            👎 No ({article.notHelpfulCount})
           </button>
           {voted && (
             <span className="text-xs text-gray-500">Thanks for your feedback!</span>

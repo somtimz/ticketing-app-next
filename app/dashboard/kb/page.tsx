@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 
@@ -38,7 +38,8 @@ export default function KBPage(): JSX.Element {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [page, setPage] = useState(1);
-  const [searchTimeout, setSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
+  // Use ref, not state — timers are transient values that don't need to trigger re-renders
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const userRole = session?.user?.role as string | undefined;
   const isAgent = userRole === 'Agent' || userRole === 'TeamLead' || userRole === 'Admin';
@@ -75,15 +76,16 @@ export default function KBPage(): JSX.Element {
     })();
   }, []);
 
-  // Debounced search
+  // Debounced search — timer stored in ref so it doesn't trigger extra renders
   useEffect(() => {
-    if (searchTimeout) clearTimeout(searchTimeout);
-    const t = setTimeout(() => {
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => {
       setPage(1);
       void fetchArticles(search, categoryFilter, 1);
     }, 300);
-    setSearchTimeout(t);
-    return () => clearTimeout(t);
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, categoryFilter]);
 

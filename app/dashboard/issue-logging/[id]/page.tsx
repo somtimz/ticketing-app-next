@@ -183,9 +183,7 @@ export default function TicketDetailPage(): JSX.Element {
   }, [ticketId]);
 
   useEffect(() => {
-    void fetchTicket();
-    void fetchComments();
-    void fetchAttachments();
+    void Promise.all([fetchTicket(), fetchComments(), fetchAttachments()]);
   }, [fetchTicket, fetchComments, fetchAttachments]);
 
   useEffect(() => {

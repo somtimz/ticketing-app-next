@@ -38,17 +38,27 @@ export default function EditKBArticlePage(): JSX.Element {
   const isAdmin = userRole === 'Admin';
   const isAgent = userRole === 'Agent' || userRole === 'TeamLead' || userRole === 'Admin';
 
-  // Load article
+  // Load article + categories in parallel
   useEffect(() => {
     void (async () => {
       try {
-        const res = await fetch(`/api/kb/articles/${id}`);
-        if (!res.ok) {
+        const [articleRes, catRes] = await Promise.all([
+          fetch(`/api/kb/articles/${id}`),
+          fetch('/api/categories')
+        ]);
+
+        if (!articleRes.ok) {
           setError('Article not found.');
           setIsLoading(false);
           return;
         }
-        const article = await res.json() as KBArticle;
+
+        const [article, catData] = await Promise.all([
+          articleRes.json() as Promise<KBArticle>,
+          catRes.json() as Promise<{ categories: Category[] }>
+        ]);
+
+        setCategories(catData.categories ?? []);
 
         // Auth check: must be agent and (author or admin)
         if (status === 'authenticated') {
@@ -70,19 +80,6 @@ export default function EditKBArticlePage(): JSX.Element {
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, status]);
-
-  // Load categories
-  useEffect(() => {
-    void (async () => {
-      try {
-        const res = await fetch('/api/categories');
-        const data = await res.json() as { categories: Category[] };
-        setCategories(data.categories ?? []);
-      } catch {
-        console.error('Failed to fetch categories');
-      }
-    })();
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
