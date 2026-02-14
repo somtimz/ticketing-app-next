@@ -71,7 +71,19 @@
       "Bash(npm run db:seed:*)",
       "Bash(echo:*)",
       "Bash(Test-Path:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(npx claude:*)",
+      "Bash(start cmd /k \"claude doctor\")",
+      "Bash(test:*)",
+      "Bash(git rm:*)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(npm ls:*)",
+      "Bash(node -e:*)",
+      "Bash(npm test:*)",
+      "Bash(start:*)",
+      "Bash(npx skills find:*)",
+      "Skill(commit-commands:commit)"
     ]
   }
 }
