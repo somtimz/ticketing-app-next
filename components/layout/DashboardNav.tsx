@@ -7,7 +7,8 @@ import type { NavItem, UserRole } from '@/types';
 const baseNavItems: NavItem[] = [
   { href: '/dashboard/issue-logging', label: 'Issue Logging', icon: '📋' },
   { href: '/dashboard/my-tickets', label: 'My Tickets', icon: '🎫' },
-  { href: '/dashboard/all-tickets', label: 'All Tickets', icon: '📑' }
+  { href: '/dashboard/all-tickets', label: 'All Tickets', icon: '📑' },
+  { href: '/dashboard/kb', label: 'Knowledge Base', icon: '📚' }
 ];
 
 const adminNavItems: NavItem[] = [

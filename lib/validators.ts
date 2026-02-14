@@ -55,6 +55,17 @@ export const employeeSearchSchema = z.object({
   q: z.string().min(1, 'Search query is required')
 });
 
+// Knowledge Base schemas
+export const createKBArticleSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(500, 'Title is too long'),
+  content: z.string().min(1, 'Content is required'),
+  categoryId: z.number().int().optional(),
+  isPublished: z.boolean().default(false)
+});
+export const updateKBArticleSchema = createKBArticleSchema.partial();
+export type CreateKBArticleInput = z.infer<typeof createKBArticleSchema>;
+export type UpdateKBArticleInput = z.infer<typeof updateKBArticleSchema>;
+
 // Type exports from schemas
 export type CreateTicketInput = z.infer<typeof createTicketSchema>;
 export type UpdateTicketStatusInput = z.infer<typeof updateTicketStatusSchema>;
