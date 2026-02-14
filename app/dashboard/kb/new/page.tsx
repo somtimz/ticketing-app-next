@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import ReactMarkdown from 'react-markdown';
 
@@ -12,10 +12,11 @@ interface Category {
 
 export default function NewKBArticlePage(): JSX.Element {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const [categories, setCategories] = useState<Category[]>([]);
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+  const [title, setTitle] = useState(searchParams.get('title') ?? '');
+  const [content, setContent] = useState(searchParams.get('content') ?? '');
   const [categoryId, setCategoryId] = useState('');
   const [isPublished, setIsPublished] = useState(false);
   const [preview, setPreview] = useState(false);

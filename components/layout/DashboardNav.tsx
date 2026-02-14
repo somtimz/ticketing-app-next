@@ -11,6 +11,10 @@ const baseNavItems: NavItem[] = [
   { href: '/dashboard/kb', label: 'Knowledge Base', icon: '📚' }
 ];
 
+const agentNavItems: NavItem[] = [
+  { href: '/dashboard/analytics', label: 'Analytics', icon: '📊' }
+];
+
 const adminNavItems: NavItem[] = [
   { href: '/dashboard/agents', label: 'Manage Agents', icon: '👥' }
 ];
@@ -22,8 +26,13 @@ interface DashboardNavProps {
 export default function DashboardNav({ userRole }: DashboardNavProps): JSX.Element {
   const pathname = usePathname();
   const isAdmin = userRole === 'Admin';
+  const isAgentOrAbove = userRole === 'Agent' || userRole === 'TeamLead' || userRole === 'Admin';
 
-  const allNavItems = [...baseNavItems, ...(isAdmin ? adminNavItems : [])];
+  const allNavItems = [
+    ...baseNavItems,
+    ...(isAgentOrAbove ? agentNavItems : []),
+    ...(isAdmin ? adminNavItems : [])
+  ];
 
   return (
     <nav className="p-4 space-y-2">

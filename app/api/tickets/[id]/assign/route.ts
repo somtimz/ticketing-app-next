@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { tickets, auditLog } from '@/lib/db/schema';
+import { tickets, auditLog, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { reassignTicketSchema, type ReassignTicketInput } from '@/lib/validators';
+import { sendTicketAssignedEmail } from '@/lib/email';
 import type { ApiErrorResponse } from '@/types';
 
 // PUT /api/tickets/[id]/assign - Reassign ticket to another agent
@@ -31,9 +32,9 @@ export async function PUT(
       );
     }
 
-    // Get current assignment
+    // Get current ticket info
     const currentTicket = await db
-      .select({ assignedAgentId: tickets.assignedAgentId })
+      .select({ assignedAgentId: tickets.assignedAgentId, ticketNumber: tickets.ticketNumber, title: tickets.title, priority: tickets.priority, id: tickets.id })
       .from(tickets)
       .where(eq(tickets.id, ticketId))
       .limit(1);
@@ -71,6 +72,23 @@ export async function PUT(
         notes: validatedData.notes
       })
     });
+
+    // Fire-and-forget email to newly assigned agent
+    const assignedAgent = await db
+      .select({ email: users.email, fullName: users.fullName })
+      .from(users)
+      .where(eq(users.id, validatedData.agentId))
+      .limit(1);
+    if (assignedAgent[0]?.email) {
+      void sendTicketAssignedEmail(
+        assignedAgent[0].email,
+        currentTicket[0].ticketNumber,
+        currentTicket[0].title,
+        currentTicket[0].priority,
+        currentTicket[0].id,
+        session.user.name ?? 'System'
+      );
+    }
 
     return NextResponse.json({
       success: true,

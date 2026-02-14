@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import { useState, useEffect, useRef, useCallback, type FormEvent } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import type { TicketWithRelations, TicketStatus, TicketPriority } from '@/types';
 import { getSLAStatus } from '@/lib/sla';
@@ -14,6 +15,16 @@ interface Comment {
   isInternal: boolean;
   createdAt: string | Date;
   author: { id: number; fullName: string; role: string };
+}
+
+interface Attachment {
+  id: number;
+  filename: string;
+  fileUrl: string;
+  fileSize: number;
+  mimeType: string;
+  createdAt: string | Date;
+  uploadedBy: { id: number; fullName: string };
 }
 
 // ─── Colour maps ─────────────────────────────────────────────────────────────
@@ -118,6 +129,12 @@ export default function TicketDetailPage(): JSX.Element {
   const [selectedAgentId, setSelectedAgentId] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
 
+  // Attachments
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [fileError, setFileError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Log call
   const [showCallForm, setShowCallForm] = useState(false);
   const [callDirection, setCallDirection] = useState<'inbound' | 'outbound'>('inbound');
@@ -154,10 +171,22 @@ export default function TicketDetailPage(): JSX.Element {
     }
   }, [ticketId]);
 
+  const fetchAttachments = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/tickets/${ticketId}/attachments`);
+      if (!res.ok) return;
+      const data = await res.json() as { attachments: Attachment[] };
+      setAttachments(data.attachments ?? []);
+    } catch {
+      // non-fatal
+    }
+  }, [ticketId]);
+
   useEffect(() => {
     void fetchTicket();
     void fetchComments();
-  }, [fetchTicket, fetchComments]);
+    void fetchAttachments();
+  }, [fetchTicket, fetchComments, fetchAttachments]);
 
   useEffect(() => {
     if (!isAgent) return;
@@ -274,6 +303,30 @@ export default function TicketDetailPage(): JSX.Element {
     }
   };
 
+  const handleFileUpload = async (file: File) => {
+    setIsUploadingFile(true);
+    setFileError('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(`/api/tickets/${ticketId}/attachments`, {
+        method: 'POST',
+        body: fd
+      });
+      if (res.ok) {
+        await fetchAttachments();
+      } else {
+        const d = await res.json() as { message?: string };
+        setFileError(d.message || 'Upload failed');
+      }
+    } catch {
+      setFileError('Upload failed');
+    } finally {
+      setIsUploadingFile(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   // ─── Loading / error states ───────────────────────────────────────────────
 
   if (isLoading) {
@@ -316,12 +369,22 @@ export default function TicketDetailPage(): JSX.Element {
           </div>
           <p className="text-gray-600">{ticket.title}</p>
         </div>
-        <button
-          onClick={() => router.back()}
-          className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-        >
-          Back
-        </button>
+        <div className="flex gap-2">
+          {isAgent && !isOpen && (
+            <Link
+              href={`/dashboard/kb/new?title=${encodeURIComponent(ticket.title)}&content=${encodeURIComponent(ticket.resolution ?? `## Problem\n${ticket.description}\n\n## Resolution\n`)}`}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700"
+            >
+              Convert to KB Article
+            </Link>
+          )}
+          <button
+            onClick={() => router.back()}
+            className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Back
+          </button>
+        </div>
       </div>
 
       {/* Details Grid */}
@@ -501,6 +564,52 @@ export default function TicketDetailPage(): JSX.Element {
           </div>
         </div>
       )}
+
+      {/* Attachments */}
+      <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-medium text-gray-900">
+            Attachments {attachments.length > 0 && <span className="text-gray-400 text-base font-normal">({attachments.length})</span>}
+          </h2>
+          <label className="cursor-pointer px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+            {isUploadingFile ? 'Uploading...' : '+ Attach File'}
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              disabled={isUploadingFile}
+              onChange={e => {
+                const file = e.target.files?.[0];
+                if (file) void handleFileUpload(file);
+              }}
+            />
+          </label>
+        </div>
+        {fileError && <p className="text-sm text-red-600 mb-3">{fileError}</p>}
+        {attachments.length === 0 ? (
+          <p className="text-sm text-gray-400 italic">No attachments.</p>
+        ) : (
+          <ul className="space-y-2">
+            {attachments.map(att => (
+              <li key={att.id} className="flex items-center justify-between text-sm border border-gray-200 rounded p-3">
+                <div>
+                  <a
+                    href={att.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary-600 hover:underline font-medium"
+                  >
+                    {att.filename}
+                  </a>
+                  <span className="ml-2 text-xs text-gray-400">
+                    ({(att.fileSize / 1024).toFixed(0)} KB) — {att.uploadedBy.fullName} · {new Date(att.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {/* Actions */}
       {isOpen && (

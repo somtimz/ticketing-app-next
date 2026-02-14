@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { tickets, ticketStatusHistory } from '@/lib/db/schema';
+import { tickets, ticketStatusHistory, callers } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { resolveTicketSchema, type ResolveTicketInput } from '@/lib/validators';
+import { sendTicketResolvedEmail } from '@/lib/email';
 import type { ApiErrorResponse } from '@/types';
 
 // POST /api/tickets/[id]/resolve - Resolve a ticket
@@ -38,7 +39,7 @@ export async function POST(
 
     // Get current ticket status
     const currentTicket = await db
-      .select({ status: tickets.status })
+      .select({ status: tickets.status, ticketNumber: tickets.ticketNumber, title: tickets.title, callerId: tickets.callerId, id: tickets.id })
       .from(tickets)
       .where(eq(tickets.id, ticketId))
       .limit(1);
@@ -82,6 +83,24 @@ export async function POST(
     }
     if (triggerActions.updateKnowledgeArticle) {
       triggeredActions.push('knowledge_article');
+    }
+
+    // Fire-and-forget email to caller
+    if (currentTicket[0].callerId) {
+      const caller = await db
+        .select({ email: callers.email })
+        .from(callers)
+        .where(eq(callers.id, currentTicket[0].callerId))
+        .limit(1);
+      if (caller[0]?.email) {
+        void sendTicketResolvedEmail(
+          caller[0].email,
+          currentTicket[0].ticketNumber,
+          currentTicket[0].title,
+          validatedData.resolution,
+          currentTicket[0].id
+        );
+      }
     }
 
     return NextResponse.json({
