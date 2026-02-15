@@ -83,7 +83,13 @@
       "Bash(npm test:*)",
       "Bash(start:*)",
       "Bash(npx skills find:*)",
-      "Skill(commit-commands:commit)"
+      "Skill(commit-commands:commit)",
+      "Bash(npx next dev:*)",
+      "Bash(TMPDIR=/tmp npm run dev:*)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "github"
+  ]
 }
