@@ -256,8 +256,19 @@ export async function POST(req: NextRequest) {
     const createdAt = new Date();
     const slaDueDates = calculateSLADueDates(priority, createdAt);
 
-    // Determine initial status and assignment
+    // Determine initial status and auto-assignment
     let assignedAgentId: number | null = null;
+    let initialStatus: 'New' | 'Assigned' = 'New';
+
+    // Auto-assign based on category if available
+    if (categoryId) {
+      const { findBestAgentForCategory } = await import('@/lib/assignment');
+      const bestAgent = await findBestAgentForCategory(categoryId);
+      if (bestAgent) {
+        assignedAgentId = bestAgent;
+        initialStatus = 'Assigned';
+      }
+    }
 
     // Create ticket
     const newTicketRows = await db
@@ -270,9 +281,10 @@ export async function POST(req: NextRequest) {
         impact: validatedData.impact,
         urgency: validatedData.urgency,
         priority,
-        status: 'New' as const,
+        status: initialStatus,
         callerId,
         assignedAgentId,
+        createdBy: Number.parseInt(session.user.id, 10),
         slaFirstResponseDue: slaDueDates.firstResponseDue,
         slaResolutionDue: slaDueDates.resolutionDue
       })

@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/auto-close",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/sla-monitor",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}

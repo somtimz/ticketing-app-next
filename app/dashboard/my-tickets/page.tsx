@@ -3,6 +3,34 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import type { TicketWithRelations, TicketStatus } from '@/types';
+import { getSLAStatus } from '@/lib/sla';
+
+const SLA_INDICATOR_STYLES: Record<'ok' | 'warning' | 'breached', { dot: string; label: string }> = {
+  ok: { dot: 'bg-green-500', label: 'SLA OK' },
+  warning: { dot: 'bg-yellow-500', label: 'SLA Warning' },
+  breached: { dot: 'bg-red-500', label: 'SLA Breached' },
+};
+
+function SLAIndicator({ ticket }: { ticket: TicketWithRelations }): JSX.Element | null {
+  if (ticket.status === 'Resolved' || ticket.status === 'Closed') return null;
+  if (!ticket.slaResolutionDue) return null;
+
+  const status = getSLAStatus(
+    new Date(ticket.createdAt),
+    new Date(ticket.slaResolutionDue),
+    new Date()
+  );
+  const style = SLA_INDICATOR_STYLES[status];
+
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-gray-50 border border-gray-200" title={style.label}>
+      <span className={`inline-block w-2 h-2 rounded-full ${style.dot}`} />
+      <span className={status === 'breached' ? 'text-red-700' : status === 'warning' ? 'text-yellow-700' : 'text-green-700'}>
+        {style.label}
+      </span>
+    </span>
+  );
+}
 
 const STATUS_COLORS: Record<TicketStatus, string> = {
   New: 'bg-status-open text-white',
@@ -171,6 +199,7 @@ export default function MyTicketsPage(): JSX.Element {
                         >
                           {ticket.priority}
                         </span>
+                        <SLAIndicator ticket={ticket} />
                       </div>
                       <div className="mt-1 flex items-center gap-4 text-xs text-gray-500">
                         <span>

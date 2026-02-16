@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import ReactMarkdown from 'react-markdown';
 
@@ -25,9 +25,11 @@ interface KBArticle {
 export default function KBArticlePage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const { data: session } = useSession();
+  const router = useRouter();
   const [article, setArticle] = useState<KBArticle | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   // voted tracks local vote state; counts are read directly from article to avoid duplicating state
   const [voted, setVoted] = useState<'helpful' | 'not_helpful' | null>(null);
 
@@ -36,6 +38,7 @@ export default function KBArticlePage(): JSX.Element {
   const isAgent = userRole === 'Agent' || userRole === 'TeamLead' || userRole === 'Admin';
   const isAdmin = userRole === 'Admin';
   const canEdit = article && (isAdmin || (isAgent && String(article.createdBy) === userId));
+  const canDelete = canEdit;
 
   useEffect(() => {
     void (async () => {
@@ -77,6 +80,24 @@ export default function KBArticlePage(): JSX.Element {
       }
     } catch {
       console.error('Failed to submit feedback');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this article? This action cannot be undone.')) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/kb/articles/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        router.push('/dashboard/kb');
+      } else {
+        const data = await res.json() as { message?: string };
+        alert(data.message ?? 'Failed to delete article.');
+        setIsDeleting(false);
+      }
+    } catch {
+      alert('Failed to delete article.');
+      setIsDeleting(false);
     }
   };
 
@@ -129,12 +150,23 @@ export default function KBArticlePage(): JSX.Element {
             </div>
           </div>
           {canEdit && (
-            <Link
-              href={`/dashboard/kb/${id}/edit`}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap"
-            >
-              Edit
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/dashboard/kb/${id}/edit`}
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap"
+              >
+                Edit
+              </Link>
+              {canDelete && (
+                <button
+                  onClick={() => void handleDelete()}
+                  disabled={isDeleting}
+                  className="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap disabled:opacity-50"
+                >
+                  {isDeleting ? 'Deleting...' : 'Delete'}
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>

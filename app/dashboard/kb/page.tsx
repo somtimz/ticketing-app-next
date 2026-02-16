@@ -9,6 +9,7 @@ interface KBArticle {
   title: string;
   categoryId: number | null;
   categoryName: string | null;
+  createdBy: number;
   viewCount: number;
   helpfulCount: number;
   notHelpfulCount: number;
@@ -42,7 +43,29 @@ export default function KBPage(): JSX.Element {
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const userRole = session?.user?.role as string | undefined;
+  const userId = session?.user?.id;
   const isAgent = userRole === 'Agent' || userRole === 'TeamLead' || userRole === 'Admin';
+  const isAdmin = userRole === 'Admin';
+
+  const canDeleteArticle = (article: KBArticle) =>
+    isAdmin || (isAgent && String(article.createdBy) === userId);
+
+  const handleDelete = async (e: React.MouseEvent, articleId: number) => {
+    e.preventDefault(); // prevent navigating to the article
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to delete this article? This action cannot be undone.')) return;
+    try {
+      const res = await fetch(`/api/kb/articles/${articleId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setArticles(prev => prev.filter(a => a.id !== articleId));
+      } else {
+        const data = await res.json() as { message?: string };
+        alert(data.message ?? 'Failed to delete article.');
+      }
+    } catch {
+      alert('Failed to delete article.');
+    }
+  };
 
   const fetchArticles = useCallback(async (q: string, catId: string, p: number) => {
     setIsLoading(true);
@@ -172,6 +195,14 @@ export default function KBPage(): JSX.Element {
                     <span>Updated {new Date(article.updatedAt).toLocaleDateString()}</span>
                   </div>
                 </div>
+                {canDeleteArticle(article) && (
+                  <button
+                    onClick={(e) => void handleDelete(e, article.id)}
+                    className="px-2 py-1 text-xs border border-red-300 text-red-600 rounded hover:bg-red-50 transition-colors whitespace-nowrap"
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
             </Link>
           ))

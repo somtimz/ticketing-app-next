@@ -32,9 +32,9 @@ export async function findBestAgentForCategory(
     return null;
   }
 
-  // Get all active agents
+  // Get all active agents (Agent role)
   const allAgents = await db.query.users.findMany({
-    where: eq(users.role, 'Agent')
+    where: and(eq(users.role, 'Agent'), eq(users.isActive, true))
   });
 
   if (allAgents.length === 0) {
@@ -119,7 +119,7 @@ export async function assignTicket(
     )
   });
 
-  if (!agent || agent.role !== 'Agent') {
+  if (!agent || !['Agent', 'TeamLead', 'Admin'].includes(agent.role)) {
     return {
       success: false,
       reason: 'Agent not found or inactive'

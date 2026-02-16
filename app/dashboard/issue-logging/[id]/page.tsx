@@ -27,6 +27,14 @@ interface Attachment {
   uploadedBy: { id: number; fullName: string };
 }
 
+interface TimelineEvent {
+  id: string;
+  type: 'status_change' | 'comment' | 'call' | 'attachment';
+  timestamp: string | Date;
+  actor: { id: number; fullName: string } | null;
+  data: Record<string, unknown>;
+}
+
 // ─── Colour maps ─────────────────────────────────────────────────────────────
 
 const STATUS_COLORS: Record<TicketStatus, string> = {
@@ -135,6 +143,9 @@ export default function TicketDetailPage(): JSX.Element {
   const [fileError, setFileError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Activity timeline
+  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+
   // Log call
   const [showCallForm, setShowCallForm] = useState(false);
   const [callDirection, setCallDirection] = useState<'inbound' | 'outbound'>('inbound');
@@ -182,9 +193,20 @@ export default function TicketDetailPage(): JSX.Element {
     }
   }, [ticketId]);
 
+  const fetchTimeline = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/tickets/${ticketId}/history`);
+      if (!res.ok) return;
+      const data = await res.json() as { timeline: TimelineEvent[] };
+      setTimeline(data.timeline ?? []);
+    } catch {
+      // non-fatal
+    }
+  }, [ticketId]);
+
   useEffect(() => {
-    void Promise.all([fetchTicket(), fetchComments(), fetchAttachments()]);
-  }, [fetchTicket, fetchComments, fetchAttachments]);
+    void Promise.all([fetchTicket(), fetchComments(), fetchAttachments(), fetchTimeline()]);
+  }, [fetchTicket, fetchComments, fetchAttachments, fetchTimeline]);
 
   useEffect(() => {
     if (!isAgent) return;
@@ -603,11 +625,100 @@ export default function TicketDetailPage(): JSX.Element {
                     ({(att.fileSize / 1024).toFixed(0)} KB) — {att.uploadedBy.fullName} · {new Date(att.createdAt).toLocaleDateString()}
                   </span>
                 </div>
+                {isAgent && (
+                  <button
+                    onClick={async () => {
+                      if (!confirm('Delete this attachment?')) return;
+                      try {
+                        const res = await fetch(`/api/tickets/${ticketId}/attachments/${att.id}`, { method: 'DELETE' });
+                        if (res.ok) await fetchAttachments();
+                      } catch {
+                        // non-fatal
+                      }
+                    }}
+                    className="text-xs text-red-600 hover:underline ml-2 shrink-0"
+                  >
+                    Delete
+                  </button>
+                )}
               </li>
             ))}
           </ul>
         )}
       </div>
+
+      {/* Activity Timeline */}
+      {timeline.length > 0 && (
+        <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Activity Timeline</h2>
+          <div className="space-y-3">
+            {timeline.map(event => {
+              const timeStr = new Date(event.timestamp).toLocaleString();
+              const actor = event.actor?.fullName || 'System';
+
+              if (event.type === 'status_change') {
+                return (
+                  <div key={event.id} className="flex items-start gap-3 text-sm">
+                    <span className="mt-0.5 w-6 h-6 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full text-xs shrink-0">S</span>
+                    <div>
+                      <p className="text-gray-900">
+                        <span className="font-medium">{actor}</span> changed status
+                        {String(event.data.fromStatus || '') && <> from <span className="font-medium">{String(event.data.fromStatus)}</span></>}
+                        {' '}to <span className="font-medium">{String(event.data.toStatus)}</span>
+                      </p>
+                      {event.data.notes ? <p className="text-gray-500 text-xs mt-0.5">{String(event.data.notes)}</p> : null}
+                      <p className="text-gray-400 text-xs">{timeStr}</p>
+                    </div>
+                  </div>
+                );
+              }
+              if (event.type === 'comment') {
+                return (
+                  <div key={event.id} className="flex items-start gap-3 text-sm">
+                    <span className={`mt-0.5 w-6 h-6 flex items-center justify-center rounded-full text-xs shrink-0 ${event.data.isInternal ? 'bg-yellow-100 text-yellow-600' : 'bg-green-100 text-green-600'}`}>C</span>
+                    <div>
+                      <p className="text-gray-900">
+                        <span className="font-medium">{actor}</span> added a {event.data.isInternal ? 'internal ' : ''}comment
+                      </p>
+                      <p className="text-gray-500 text-xs mt-0.5 line-clamp-2">{String(event.data.body)}</p>
+                      <p className="text-gray-400 text-xs">{timeStr}</p>
+                    </div>
+                  </div>
+                );
+              }
+              if (event.type === 'call') {
+                return (
+                  <div key={event.id} className="flex items-start gap-3 text-sm">
+                    <span className="mt-0.5 w-6 h-6 flex items-center justify-center bg-purple-100 text-purple-600 rounded-full text-xs shrink-0">P</span>
+                    <div>
+                      <p className="text-gray-900">
+                        <span className="font-medium">{actor}</span> logged {String(event.data.callDirection)} call
+                        {event.data.duration ? ` (${Math.floor(Number(event.data.duration) / 60)}m)` : ''}
+                      </p>
+                      {event.data.notes ? <p className="text-gray-500 text-xs mt-0.5">{String(event.data.notes)}</p> : null}
+                      <p className="text-gray-400 text-xs">{timeStr}</p>
+                    </div>
+                  </div>
+                );
+              }
+              if (event.type === 'attachment') {
+                return (
+                  <div key={event.id} className="flex items-start gap-3 text-sm">
+                    <span className="mt-0.5 w-6 h-6 flex items-center justify-center bg-gray-100 text-gray-600 rounded-full text-xs shrink-0">F</span>
+                    <div>
+                      <p className="text-gray-900">
+                        <span className="font-medium">{actor}</span> attached <span className="font-medium">{String(event.data.filename)}</span>
+                      </p>
+                      <p className="text-gray-400 text-xs">{timeStr}</p>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Actions */}
       {isOpen && (

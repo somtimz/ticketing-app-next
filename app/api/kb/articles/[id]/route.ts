@@ -110,22 +110,33 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   }
 }
 
-// DELETE /api/kb/articles/[id] - Admin only
+// DELETE /api/kb/articles/[id] - Admin or article author (Agent+)
 export async function DELETE(_req: NextRequest, { params }: RouteParams) {
   try {
     const session = await auth();
-    requireRole(session, 'Admin');
+    requireRole(session, 'Agent');
 
     const { id } = await params;
     const articleId = parseInt(id);
     if (isNaN(articleId)) throw new APIError(400, 'invalid_id', 'Invalid article ID');
 
-    const [deleted] = await db
-      .delete(knowledgeBaseArticles)
-      .where(eq(knowledgeBaseArticles.id, articleId))
-      .returning({ id: knowledgeBaseArticles.id });
+    const [existing] = await db
+      .select({ createdBy: knowledgeBaseArticles.createdBy })
+      .from(knowledgeBaseArticles)
+      .where(eq(knowledgeBaseArticles.id, articleId));
 
-    if (!deleted) throw new APIError(404, 'not_found', 'Article not found');
+    if (!existing) throw new APIError(404, 'not_found', 'Article not found');
+
+    const userId = parseInt(session!.user!.id);
+    const isAdmin = hasRole(session, 'Admin');
+
+    if (!isAdmin && existing.createdBy !== userId) {
+      throw new APIError(403, 'forbidden', 'You can only delete your own articles');
+    }
+
+    await db
+      .delete(knowledgeBaseArticles)
+      .where(eq(knowledgeBaseArticles.id, articleId));
 
     return NextResponse.json({ success: true });
   } catch (error) {

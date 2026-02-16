@@ -447,6 +447,58 @@ export async function sendSLAWarningEmail(
 }
 
 /**
+ * Email sent when a new comment is added to a ticket
+ */
+export async function sendTicketCommentEmail(
+  to: string,
+  ticketNumber: string,
+  title: string,
+  commenterName: string,
+  commentBody: string,
+  ticketId: number
+): Promise<boolean> {
+  const ticketUrl = `${APP_URL}/dashboard/issue-logging/${ticketId}`;
+  const preview = commentBody.length > 200 ? commentBody.substring(0, 200) + '...' : commentBody;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px 30px; border-radius: 8px 8px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+          .comment-box { background: white; border-left: 4px solid #667eea; padding: 15px; border-radius: 4px; margin: 15px 0; }
+          .button { display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 15px; }
+          .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <p style="margin: 0; font-size: 14px; opacity: 0.9;">New Comment</p>
+            <p style="margin: 5px 0 0; font-size: 20px; font-weight: bold;">${ticketNumber}</p>
+          </div>
+          <div class="content">
+            <p><strong>${commenterName}</strong> commented on <strong>${title}</strong>:</p>
+            <div class="comment-box">
+              <p style="margin: 0; white-space: pre-wrap;">${preview}</p>
+            </div>
+            <a href="${ticketUrl}" class="button">View Ticket</a>
+            <div class="footer">
+              <p>This is an automated message from IT Help Desk.</p>
+            </div>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  return sendEmail(to, `Comment on ${ticketNumber}: ${title}`, html);
+}
+
+/**
  * Helper function to get SLA text for priority
  */
 function getSlaText(priority: string): string {

@@ -85,7 +85,9 @@
       "Bash(npx skills find:*)",
       "Skill(commit-commands:commit)",
       "Bash(npx next dev:*)",
-      "Bash(TMPDIR=/tmp npm run dev:*)"
+      "Bash(TMPDIR=/tmp npm run dev:*)",
+      "Bash(git config:*)",
+      "Bash(npx next build:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

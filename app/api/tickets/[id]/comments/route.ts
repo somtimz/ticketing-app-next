@@ -6,6 +6,7 @@ import { comments, tickets, users } from '@/lib/db/schema';
 import { eq, asc } from 'drizzle-orm';
 import { requireAuth, handleAPIError } from '@/lib/api-error';
 import { hasRole } from '@/lib/rbac';
+import { sendTicketCommentEmail } from '@/lib/email';
 
 const addCommentSchema = z.object({
   body: z.string().min(1).max(5000),
@@ -108,6 +109,26 @@ export async function POST(
       .update(tickets)
       .set({ lastActivityAt: new Date(), updatedAt: new Date() })
       .where(eq(tickets.id, ticketId));
+
+    // Send email notification for non-internal comments
+    if (!isInternal) {
+      const fullTicket = await db.query.tickets.findFirst({
+        where: eq(tickets.id, ticketId)
+      }) as any;
+
+      if (fullTicket) {
+        const commenterName = session!.user.name || 'Support Agent';
+        // Notify assigned agent if commenter is not the agent
+        if (fullTicket.assignedAgentId && String(fullTicket.assignedAgentId) !== session!.user.id) {
+          const agent = await db.query.users.findFirst({
+            where: eq(users.id, fullTicket.assignedAgentId)
+          });
+          if (agent?.email) {
+            void sendTicketCommentEmail(agent.email, fullTicket.ticketNumber, fullTicket.title, commenterName, validated.body, ticketId);
+          }
+        }
+      }
+    }
 
     return NextResponse.json({ comment }, { status: 201 });
   } catch (error) {
