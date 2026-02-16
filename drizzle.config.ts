@@ -1,10 +1,13 @@
+import { config } from 'dotenv';
+config({ path: '.env.local' });
+
 import type { Config } from 'drizzle-kit';
 
 export default {
   schema: './lib/db/schema.ts',
   out: './lib/db/migrations',
-  dialect: 'sqlite',
+  dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL || 'file:data/ticketing.db'
+    url: process.env.DATABASE_URL!
   }
 } satisfies Config;

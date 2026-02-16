@@ -87,7 +87,17 @@
       "Bash(npx next dev:*)",
       "Bash(TMPDIR=/tmp npm run dev:*)",
       "Bash(git config:*)",
-      "Bash(npx next build:*)"
+      "Bash(npx next build:*)",
+      "mcp__claude_ai_Vercel__deploy_to_vercel",
+      "Bash(npx vercel --version)",
+      "Bash(npx vercel deploy:*)",
+      "mcp__claude_ai_Vercel__list_teams",
+      "mcp__claude_ai_Vercel__list_projects",
+      "mcp__claude_ai_Vercel__list_deployments",
+      "mcp__claude_ai_Vercel__get_runtime_logs",
+      "mcp__claude_ai_Vercel__get_deployment_build_logs",
+      "Bash(openssl rand:*)",
+      "Bash(npx vercel env add:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -1,50 +1,45 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { pgTable, serial, text, integer, boolean, timestamp } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
-// Role enum for type-safe role management
-export const roleEnum = text('role', {
-  enum: ['Employee', 'Agent', 'TeamLead', 'Admin']
-});
-
 // Departments table (for team-level visibility)
-export const departments = sqliteTable('departments', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const departments = pgTable('departments', {
+  id: serial('id').primaryKey(),
   name: text('name').notNull().unique(),
   code: text('code').notNull().unique(), // e.g., 'ENG', 'SALES', 'HR'
   description: text('description'),
-  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-  createdAt: integer('created_at', { mode: 'timestamp' })
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at')
     .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .default(sql`now()`),
+  updatedAt: timestamp('updated_at')
     .notNull()
-    .default(sql`(unixepoch())`)
+    .default(sql`now()`)
 });
 
 // Users table (agents, employees, team leads, admins)
-export const users = sqliteTable('users', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
   email: text('email').notNull().unique(),
   passwordHash: text('password_hash'), // Nullable for SAML users
   fullName: text('full_name').notNull(),
-  role: roleEnum.notNull().default('Employee'),
+  role: text('role', { enum: ['Employee', 'Agent', 'TeamLead', 'Admin'] }).notNull().default('Employee'),
   samlIdentityId: text('saml_identity_id'), // For SSO accounts
   departmentId: integer('department_id').references(() => departments.id, {
     onDelete: 'set null'
   }),
   location: text('location'),
-  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-  createdAt: integer('created_at', { mode: 'timestamp' })
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at')
     .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .default(sql`now()`),
+  updatedAt: timestamp('updated_at')
     .notNull()
-    .default(sql`(unixepoch())`)
+    .default(sql`now()`)
 });
 
 // Employees table (from directory integration)
-export const employees = sqliteTable('employees', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const employees = pgTable('employees', {
+  id: serial('id').primaryKey(),
   employeeId: text('employee_id').notNull().unique(),
   email: text('email').notNull().unique(),
   fullName: text('full_name').notNull(),
@@ -54,18 +49,18 @@ export const employees = sqliteTable('employees', {
   userId: integer('user_id').references(() => users.id, {
     onDelete: 'set null'
   }),
-  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-  createdAt: integer('created_at', { mode: 'timestamp' })
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at')
     .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .default(sql`now()`),
+  updatedAt: timestamp('updated_at')
     .notNull()
-    .default(sql`(unixepoch())`)
+    .default(sql`now()`)
 });
 
 // Guest users table (external callers, vendors, contractors)
-export const guestUsers = sqliteTable('guest_users', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const guestUsers = pgTable('guest_users', {
+  id: serial('id').primaryKey(),
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
   company: text('company').notNull(),
@@ -73,19 +68,19 @@ export const guestUsers = sqliteTable('guest_users', {
   sponsorId: integer('sponsor_id').references(() => users.id, {
     onDelete: 'restrict'
   }), // Employee who sponsors this guest
-  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  isActive: boolean('is_active').notNull().default(true),
   notes: text('notes'),
-  createdAt: integer('created_at', { mode: 'timestamp' })
+  createdAt: timestamp('created_at')
     .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .default(sql`now()`),
+  updatedAt: timestamp('updated_at')
     .notNull()
-    .default(sql`(unixepoch())`)
+    .default(sql`now()`)
 });
 
 // Callers table (employees + guests) - legacy table, kept for compatibility
-export const callers = sqliteTable('callers', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const callers = pgTable('callers', {
+  id: serial('id').primaryKey(),
   fullName: text('full_name').notNull(),
   email: text('email'),
   phone: text('phone'),
@@ -96,19 +91,19 @@ export const callers = sqliteTable('callers', {
   guestUserId: integer('guest_user_id').references(() => guestUsers.id, {
     onDelete: 'set null'
   }),
-  isGuest: integer('is_guest', { mode: 'boolean' }).notNull().default(false),
-  createdAt: integer('created_at', { mode: 'timestamp' })
+  isGuest: boolean('is_guest').notNull().default(false),
+  createdAt: timestamp('created_at')
     .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .default(sql`now()`),
+  updatedAt: timestamp('updated_at')
     .notNull()
-    .default(sql`(unixepoch())`)
+    .default(sql`now()`)
 });
 
 // Categories table
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const categories: any = sqliteTable('categories', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const categories: any = pgTable('categories', {
+  id: serial('id').primaryKey(),
   name: text('name').notNull().unique(),
   description: text('description'),
   parentCategoryId: integer('parent_category_id').references(
@@ -119,33 +114,33 @@ export const categories: any = sqliteTable('categories', {
     onDelete: 'set null'
   }),
   formSchema: text('form_schema'), // JSON defining dynamic fields per category
-  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-  createdAt: integer('created_at', { mode: 'timestamp' })
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at')
     .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .default(sql`now()`),
+  updatedAt: timestamp('updated_at')
     .notNull()
-    .default(sql`(unixepoch())`)
+    .default(sql`now()`)
 });
 
 // SLA Policies table
-export const slaPolicies = sqliteTable('sla_policies', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const slaPolicies = pgTable('sla_policies', {
+  id: serial('id').primaryKey(),
   priority: text('priority', { enum: ['P1', 'P2', 'P3', 'P4'] }).notNull().unique(),
   firstResponseMinutes: integer('first_response_minutes').notNull(),
   resolutionMinutes: integer('resolution_minutes').notNull(),
-  createdAt: integer('created_at', { mode: 'timestamp' })
+  createdAt: timestamp('created_at')
     .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .default(sql`now()`),
+  updatedAt: timestamp('updated_at')
     .notNull()
-    .default(sql`(unixepoch())`)
+    .default(sql`now()`)
 });
 
 // Tickets table
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const tickets: any = sqliteTable('tickets', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const tickets: any = pgTable('tickets', {
+  id: serial('id').primaryKey(),
   ticketNumber: text('ticket_number').notNull().unique(),
   title: text('title').notNull(),
   description: text('description').notNull(),
@@ -179,22 +174,22 @@ export const tickets: any = sqliteTable('tickets', {
   suggestedTicketId: integer('suggested_ticket_id').references(() => tickets.id, {
     onDelete: 'set null'
   }), // Link to similar resolved ticket
-  lastActivityAt: integer('last_activity_at', { mode: 'timestamp' }), // For auto-status transitions
-  slaFirstResponseDue: integer('sla_first_response_due', { mode: 'timestamp' }),
-  slaResolutionDue: integer('sla_resolution_due', { mode: 'timestamp' }),
-  resolvedAt: integer('resolved_at', { mode: 'timestamp' }),
-  closedAt: integer('closed_at', { mode: 'timestamp' }),
-  createdAt: integer('created_at', { mode: 'timestamp' })
+  lastActivityAt: timestamp('last_activity_at'), // For auto-status transitions
+  slaFirstResponseDue: timestamp('sla_first_response_due'),
+  slaResolutionDue: timestamp('sla_resolution_due'),
+  resolvedAt: timestamp('resolved_at'),
+  closedAt: timestamp('closed_at'),
+  createdAt: timestamp('created_at')
     .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .default(sql`now()`),
+  updatedAt: timestamp('updated_at')
     .notNull()
-    .default(sql`(unixepoch())`)
+    .default(sql`now()`)
 });
 
 // Calls table (phone/email interactions)
-export const calls = sqliteTable('calls', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const calls = pgTable('calls', {
+  id: serial('id').primaryKey(),
   ticketId: integer('ticket_id').references(() => tickets.id, {
     onDelete: 'cascade'
   }),
@@ -215,14 +210,14 @@ export const calls = sqliteTable('calls', {
   callOutcome: text('call_outcome', {
     enum: ['resolved', 'escalated', 'follow_up']
   }).notNull(),
-  createdAt: integer('created_at', { mode: 'timestamp' })
+  createdAt: timestamp('created_at')
     .notNull()
-    .default(sql`(unixepoch())`)
+    .default(sql`now()`)
 });
 
 // Ticket status history
-export const ticketStatusHistory = sqliteTable('ticket_status_history', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const ticketStatusHistory = pgTable('ticket_status_history', {
+  id: serial('id').primaryKey(),
   ticketId: integer('ticket_id')
     .notNull()
     .references(() => tickets.id, { onDelete: 'cascade' }),
@@ -236,14 +231,14 @@ export const ticketStatusHistory = sqliteTable('ticket_status_history', {
     onDelete: 'set null'
   }),
   notes: text('notes'),
-  changedAt: integer('changed_at', { mode: 'timestamp' })
+  changedAt: timestamp('changed_at')
     .notNull()
-    .default(sql`(unixepoch())`)
+    .default(sql`now()`)
 });
 
 // Audit log
-export const auditLog = sqliteTable('audit_log', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const auditLog = pgTable('audit_log', {
+  id: serial('id').primaryKey(),
   entityType: text('entity_type').notNull(),
   entityId: integer('entity_id').notNull(),
   action: text('action').notNull(),
@@ -251,14 +246,14 @@ export const auditLog = sqliteTable('audit_log', {
     onDelete: 'set null'
   }),
   changes: text('changes'), // JSON string of changes
-  createdAt: integer('created_at', { mode: 'timestamp' })
+  createdAt: timestamp('created_at')
     .notNull()
-    .default(sql`(unixepoch())`)
+    .default(sql`now()`)
 });
 
 // Comments table
-export const comments = sqliteTable('comments', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const comments = pgTable('comments', {
+  id: serial('id').primaryKey(),
   ticketId: integer('ticket_id')
     .notNull()
     .references(() => tickets.id, { onDelete: 'cascade' }),
@@ -266,19 +261,19 @@ export const comments = sqliteTable('comments', {
   authorId: integer('author_id')
     .notNull()
     .references(() => users.id, { onDelete: 'restrict' }),
-  isInternal: integer('is_internal', { mode: 'boolean' }).notNull().default(false),
+  isInternal: boolean('is_internal').notNull().default(false),
   mentions: text('mentions'), // JSON array of user IDs
-  createdAt: integer('created_at', { mode: 'timestamp' })
+  createdAt: timestamp('created_at')
     .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .default(sql`now()`),
+  updatedAt: timestamp('updated_at')
     .notNull()
-    .default(sql`(unixepoch())`)
+    .default(sql`now()`)
 });
 
 // Attachments table (file uploads for tickets and comments)
-export const attachments = sqliteTable('attachments', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const attachments = pgTable('attachments', {
+  id: serial('id').primaryKey(),
   ticketId: integer('ticket_id')
     .notNull()
     .references(() => tickets.id, { onDelete: 'cascade' }),
@@ -292,14 +287,14 @@ export const attachments = sqliteTable('attachments', {
   uploadedBy: integer('uploaded_by')
     .notNull()
     .references(() => users.id, { onDelete: 'restrict' }),
-  createdAt: integer('created_at', { mode: 'timestamp' })
+  createdAt: timestamp('created_at')
     .notNull()
-    .default(sql`(unixepoch())`)
+    .default(sql`now()`)
 });
 
 // Knowledge Base Articles table
-export const knowledgeBaseArticles = sqliteTable('knowledge_base_articles', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const knowledgeBaseArticles = pgTable('knowledge_base_articles', {
+  id: serial('id').primaryKey(),
   title: text('title').notNull(),
   content: text('content').notNull(), // Markdown content
   categoryId: integer('category_id').references(() => categories.id, {
@@ -311,13 +306,13 @@ export const knowledgeBaseArticles = sqliteTable('knowledge_base_articles', {
   viewCount: integer('view_count').notNull().default(0),
   helpfulCount: integer('helpful_count').notNull().default(0),
   notHelpfulCount: integer('not_helpful_count').notNull().default(0),
-  isPublished: integer('is_published', { mode: 'boolean' }).notNull().default(false),
-  createdAt: integer('created_at', { mode: 'timestamp' })
+  isPublished: boolean('is_published').notNull().default(false),
+  createdAt: timestamp('created_at')
     .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .default(sql`now()`),
+  updatedAt: timestamp('updated_at')
     .notNull()
-    .default(sql`(unixepoch())`)
+    .default(sql`now()`)
 });
 
 // Type exports
