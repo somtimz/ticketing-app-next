@@ -49,4 +49,9 @@ nul
 .claude/.mcp.json
 .claude/mcpbackup.json
 
+# playwright
+/playwright-report/
+/test-results/
+e2e/.auth/
+
 

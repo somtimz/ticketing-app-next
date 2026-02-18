@@ -1,0 +1,2 @@
+# Playwright saved auth sessions — contain cookies/tokens, never commit
+*.json
