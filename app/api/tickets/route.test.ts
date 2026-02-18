@@ -13,6 +13,38 @@ vi.mock('@/lib/auth', () => ({
   }))
 }));
 
+vi.mock('@/lib/db', () => ({
+  db: {
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn().mockResolvedValue([])
+        })),
+        limit: vi.fn().mockResolvedValue([])
+      }))
+    })),
+    insert: vi.fn(() => ({
+      values: vi.fn(() => ({
+        returning: vi.fn().mockResolvedValue([{ id: 1 }])
+      }))
+    })),
+    update: vi.fn(() => ({
+      set: vi.fn(() => ({
+        where: vi.fn().mockResolvedValue([])
+      }))
+    })),
+    query: {
+      users: { findFirst: vi.fn().mockResolvedValue(null) },
+      tickets: { findFirst: vi.fn().mockResolvedValue(null) }
+    }
+  }
+}));
+
+vi.mock('@/lib/email', () => ({
+  sendTicketCreatedEmail: vi.fn().mockResolvedValue(true),
+  sendTicketAssignedEmail: vi.fn().mockResolvedValue(true)
+}));
+
 describe('POST /api/tickets - Validation Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
