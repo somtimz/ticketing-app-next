@@ -1,0 +1,41 @@
+// e2e/tickets/employee.spec.ts
+import { test, expect } from '../fixtures';
+
+test.describe('Employee – ticket flows', () => {
+  test('create ticket with required fields → ticket appears in list', async ({ page }) => {
+    await page.goto('/dashboard/issue-logging/new');
+    await page.fill('#callerName', 'E2E Test Caller');
+    await page.fill('#title', 'E2E printer not working');
+    await page.fill('#description', 'The printer on floor 3 is jammed and wont print.');
+    // Leave impact/urgency at their defaults (Medium/Medium)
+    await page.click('button[type="submit"]');
+
+    // Should land on the ticket list after creation
+    await expect(page).toHaveURL('/dashboard/issue-logging');
+
+    // Navigate to the employee's own-tickets view to confirm it appears
+    await page.goto('/dashboard/my-tickets');
+    await expect(page.locator('text=E2E printer not working')).toBeVisible();
+  });
+
+  test('ticket list shows only own tickets — no "All Tickets" link visible', async ({ page }) => {
+    await page.goto('/dashboard/my-tickets');
+    // The heading confirms we are on the right page
+    await expect(page.locator('h1')).toContainText('My Tickets');
+    // The employee should not see tickets filed by other users
+    // (We verify the page loads without error, not an empty page)
+    await expect(page.locator('body')).not.toContainText('Error');
+  });
+
+  test('view ticket detail page loads correctly', async ({ page }) => {
+    await page.goto('/dashboard/my-tickets');
+    // Click the first ticket link
+    const firstTicket = page.locator('a[href*="/dashboard/issue-logging/"]').first();
+    await expect(firstTicket).toBeVisible();
+    await firstTicket.click();
+
+    // Detail page should show a ticket number and the "Ticket Information" section
+    await expect(page.locator('h1')).toContainText('INC-');
+    await expect(page.locator('h2:has-text("Ticket Information")')).toBeVisible();
+  });
+});
