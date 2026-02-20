@@ -9,30 +9,44 @@ test.describe('TeamLead – ticket flows', () => {
     await expect(ticketLinks.first()).toBeVisible();
   });
 
-  test('can update status on any ticket', async ({ page }) => {
-    await page.goto('/dashboard/all-tickets');
-
-    // Filter to "New" tickets so we don't accidentally open a Resolved/Closed ticket
-    // (prior tests may have already changed the status of the first ticket)
-    await page.click('button:has-text("New")');
-    const firstLink = page.locator('a[href*="/dashboard/issue-logging/"]').first();
-    await expect(firstLink).toBeVisible({ timeout: 15000 });
-    await firstLink.click();
-    await page.waitForURL(/\/dashboard\/issue-logging\/\d+/);
-    const ticketId = page.url().split('/').pop();
-
-    // The Actions panel should be present (ticket is open)
-    await expect(page.locator('h3:has-text("Update Status")')).toBeVisible({ timeout: 15000 });
-
-    // Change status to InProgress via API (bypasses controlled-select timing issues in dev mode)
-    const statusRes = await page.request.put(`/api/tickets/${ticketId}/status`, {
-      headers: { 'Content-Type': 'application/json' },
-      data: JSON.stringify({ status: 'InProgress' })
+  test('can update status on any ticket', async ({ page, request }) => {
+    // Create a fresh ticket so we don't depend on seeded "New" tickets
+    // (prior agent tests may have resolved/closed all of them)
+    const createRes = await request.post('/api/tickets', {
+      data: {
+        title: 'TeamLead E2E Status Test Ticket',
+        description: 'Created by teamlead E2E test to verify status update.',
+        impact: 'Low',
+        urgency: 'Low',
+        callerName: 'E2E Test Caller',
+        callerEmail: 'e2e@test.com'
+      }
     });
-    expect(statusRes.ok()).toBeTruthy();
+    expect(createRes.ok()).toBeTruthy();
+    const { id: ticketId } = await createRes.json() as { id: number };
 
-    await page.reload();
-    await expect(page.locator('span:has-text("In Progress")').first()).toBeVisible({ timeout: 15000 });
+    try {
+      // Navigate directly to the ticket
+      await page.goto(`/dashboard/issue-logging/${ticketId}`);
+      await page.waitForURL(/\/dashboard\/issue-logging\/\d+/);
+
+      // The Actions panel should be present (ticket is New/open)
+      await expect(page.locator('h3:has-text("Update Status")')).toBeVisible({ timeout: 15000 });
+
+      // Change status to InProgress via API (bypasses controlled-select timing issues in dev mode)
+      const statusRes = await request.put(`/api/tickets/${ticketId}/status`, {
+        data: { status: 'InProgress' }
+      });
+      expect(statusRes.ok()).toBeTruthy();
+
+      await page.reload();
+      await expect(page.locator('span:has-text("In Progress")').first()).toBeVisible({ timeout: 15000 });
+    } finally {
+      // Clean up: resolve and close the ticket
+      await request.post(`/api/tickets/${ticketId}/resolve`, {
+        data: { resolution: 'E2E test cleanup' }
+      });
+    }
   });
 
   test('admin-only API route returns 403 for TeamLead', async ({ page }) => {
