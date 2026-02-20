@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { BookOpenIcon, MagnifyingGlassIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
+import { LockClosedIcon } from '@heroicons/react/24/solid';
 
 interface KBArticle {
   id: number;
@@ -15,6 +16,7 @@ interface KBArticle {
   helpfulCount: number;
   notHelpfulCount: number;
   isPublished: boolean;
+  isAgentOnly: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -194,6 +196,12 @@ export default function KBPage(): JSX.Element {
                     {isAgent && !article.isPublished && (
                       <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700">
                         Draft
+                      </span>
+                    )}
+                    {article.isAgentOnly && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded">
+                        <LockClosedIcon className="h-3 w-3" />
+                        Agent only
                       </span>
                     )}
                   </div>
