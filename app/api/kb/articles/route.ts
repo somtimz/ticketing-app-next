@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
     // Employees can only see published articles
     if (!isAgent) {
       conditions.push(eq(knowledgeBaseArticles.isPublished, true));
+      conditions.push(eq(knowledgeBaseArticles.isAgentOnly, false));
     } else if (published === 'true') {
       conditions.push(eq(knowledgeBaseArticles.isPublished, true));
     }
@@ -66,6 +67,7 @@ export async function GET(req: NextRequest) {
         helpfulCount: knowledgeBaseArticles.helpfulCount,
         notHelpfulCount: knowledgeBaseArticles.notHelpfulCount,
         isPublished: knowledgeBaseArticles.isPublished,
+        isAgentOnly: knowledgeBaseArticles.isAgentOnly,
         createdAt: knowledgeBaseArticles.createdAt,
         updatedAt: knowledgeBaseArticles.updatedAt
       })
@@ -106,6 +108,7 @@ export async function POST(req: NextRequest) {
         content: data.content,
         categoryId: data.categoryId ?? null,
         isPublished: data.isPublished,
+        isAgentOnly: data.isAgentOnly ?? false,
         createdBy: parseInt(session!.user!.id)
       })
       .returning();
