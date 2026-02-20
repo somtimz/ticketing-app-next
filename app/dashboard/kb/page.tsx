@@ -19,6 +19,8 @@ interface KBArticle {
   isAgentOnly: boolean;
   createdAt: string;
   updatedAt: string;
+  publishedAt: string | null;
+  tags: { id: number; name: string }[];
 }
 
 interface Category {
@@ -41,6 +43,8 @@ export default function KBPage(): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [tags, setTags] = useState<{ id: number; name: string }[]>([]);
+  const [tagFilter, setTagFilter] = useState('');
   const [page, setPage] = useState(1);
   // Use ref, not state — timers are transient values that don't need to trigger re-renders
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -70,7 +74,7 @@ export default function KBPage(): JSX.Element {
     }
   };
 
-  const fetchArticles = useCallback(async (q: string, catId: string, p: number) => {
+  const fetchArticles = useCallback(async (q: string, catId: string, p: number, tagId: string) => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams({ page: String(p), limit: '20' });
@@ -80,7 +84,12 @@ export default function KBPage(): JSX.Element {
       const url = q ? `/api/kb/search?${params}` : `/api/kb/articles?${params}`;
       const res = await fetch(url);
       const data = await res.json() as { articles: KBArticle[]; pagination: Pagination };
-      setArticles(data.articles ?? []);
+      const allArticles = data.articles ?? [];
+      setArticles(
+        tagId
+          ? allArticles.filter(a => a.tags.some(t => String(t.id) === tagId))
+          : allArticles
+      );
       setPagination(data.pagination ?? null);
     } catch {
       console.error('Failed to fetch KB articles');
@@ -89,15 +98,20 @@ export default function KBPage(): JSX.Element {
     }
   }, []);
 
-  // Fetch categories once
+  // Fetch categories and tags once
   useEffect(() => {
     void (async () => {
       try {
-        const res = await fetch('/api/categories');
-        const data = await res.json() as { categories: Category[] };
-        setCategories(data.categories ?? []);
+        const [catRes, tagsRes] = await Promise.all([
+          fetch('/api/categories'),
+          fetch('/api/kb/tags')
+        ]);
+        const catData = await catRes.json() as { categories: Category[] };
+        const tagsData = await tagsRes.json() as { tags: { id: number; name: string }[] };
+        setCategories(catData.categories ?? []);
+        setTags(tagsData.tags ?? []);
       } catch {
-        console.error('Failed to fetch categories');
+        console.error('Failed to fetch categories or tags');
       }
     })();
   }, []);
@@ -107,16 +121,16 @@ export default function KBPage(): JSX.Element {
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     searchTimeoutRef.current = setTimeout(() => {
       setPage(1);
-      void fetchArticles(search, categoryFilter, 1);
+      void fetchArticles(search, categoryFilter, 1, tagFilter);
     }, 300);
     return () => {
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, categoryFilter]);
+  }, [search, categoryFilter, tagFilter]);
 
   useEffect(() => {
-    void fetchArticles(search, categoryFilter, page);
+    void fetchArticles(search, categoryFilter, page, tagFilter);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
@@ -165,6 +179,16 @@ export default function KBPage(): JSX.Element {
             <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
           ))}
         </select>
+        <select
+          value={tagFilter}
+          onChange={e => { setTagFilter(e.target.value); setPage(1); }}
+          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+        >
+          <option value="">All Tags</option>
+          {tags.map(tag => (
+            <option key={tag.id} value={String(tag.id)}>{tag.name}</option>
+          ))}
+        </select>
       </div>
 
       {/* Article List */}
@@ -193,10 +217,10 @@ export default function KBPage(): JSX.Element {
                         {article.categoryName}
                       </span>
                     )}
-                    {isAgent && !article.isPublished && (
-                      <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700">
-                        Draft
-                      </span>
+                    {isAgent && (
+                      article.isPublished
+                        ? <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700">Published</span>
+                        : <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700">Draft</span>
                     )}
                     {article.isAgentOnly && (
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded">
@@ -208,8 +232,21 @@ export default function KBPage(): JSX.Element {
                   <div className="mt-1 flex items-center gap-4 text-xs text-gray-500">
                     <span>{article.viewCount} views</span>
                     <span>{article.helpfulCount} helpful</span>
-                    <span>Updated {new Date(article.updatedAt).toLocaleDateString()}</span>
+                    <span>
+                      {article.isPublished && article.publishedAt
+                        ? `Published ${new Date(article.publishedAt).toLocaleDateString()}`
+                        : `Updated ${new Date(article.updatedAt).toLocaleDateString()}`}
+                    </span>
                   </div>
+                  {article.tags && article.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {article.tags.map(tag => (
+                        <span key={tag.id} className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">
+                          {tag.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {canDeleteArticle(article) && (
                   <button
