@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { knowledgeBaseArticles, categories } from '@/lib/db/schema';
-import { eq, and, or, ilike, sql, desc } from 'drizzle-orm';
+import { eq, and, or, ilike, sql, desc, ne } from 'drizzle-orm';
 import { handleAPIError } from '@/lib/api-error';
 
 // GET /api/kb/search?q=term - Search knowledge base articles
@@ -20,6 +20,9 @@ export async function GET(req: NextRequest) {
         { status: 401 }
       );
     }
+
+    const userRole = (session!.user as any)?.role as string | undefined;
+    const isAgent = userRole === 'Agent' || userRole === 'TeamLead' || userRole === 'Admin';
 
     const { searchParams } = new URL(req.url);
     const query = searchParams.get('q');
@@ -49,6 +52,7 @@ export async function GET(req: NextRequest) {
 
     const whereConditions = [
       eq(knowledgeBaseArticles.isPublished, true),
+      ...(!isAgent ? [ne(knowledgeBaseArticles.isAgentOnly, true)] : []),
       ...(searchConditions.length > 0 ? [or(...searchConditions)] : []),
       ...(categoryId ? [eq(knowledgeBaseArticles.categoryId, parseInt(categoryId))] : [])
     ];
@@ -70,6 +74,7 @@ export async function GET(req: NextRequest) {
         viewCount: knowledgeBaseArticles.viewCount,
         helpfulCount: knowledgeBaseArticles.helpfulCount,
         notHelpfulCount: knowledgeBaseArticles.notHelpfulCount,
+        isAgentOnly: knowledgeBaseArticles.isAgentOnly,
         createdAt: knowledgeBaseArticles.createdAt,
         updatedAt: knowledgeBaseArticles.updatedAt
       })
