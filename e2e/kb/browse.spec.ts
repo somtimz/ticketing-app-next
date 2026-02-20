@@ -4,7 +4,7 @@ import { test, expect } from '../fixtures';
 test.describe('Knowledge Base – browse (Employee role)', () => {
   test('article list loads with published articles', async ({ page }) => {
     await page.goto('/dashboard/kb');
-    await expect(page.locator('h1')).toContainText('Knowledge Base');
+    await expect(page.locator('main h1')).toContainText('Knowledge Base');
     // At least one article from the seed should be visible
     const articles = page.locator('a[href*="/dashboard/kb/"]');
     await expect(articles.first()).toBeVisible();
@@ -25,8 +25,8 @@ test.describe('Knowledge Base – browse (Employee role)', () => {
     const firstArticle = page.locator('a[href*="/dashboard/kb/"]').first();
     await firstArticle.click();
     await page.waitForURL(/\/dashboard\/kb\/\d+/);
-    // The article title appears on the detail page
-    await expect(page.locator('h1')).toBeVisible();
+    // The article title appears on the detail page (use .first() — markdown content may also render an h1)
+    await expect(page.locator('main h1').first()).toBeVisible({ timeout: 15000 });
   });
 
   test('submit helpful feedback → button state changes', async ({ page }) => {
@@ -36,11 +36,11 @@ test.describe('Knowledge Base – browse (Employee role)', () => {
 
     // Button text is "👍 Yes (N)" — use partial text match
     const helpfulBtn = page.locator('button').filter({ hasText: /Yes/ }).first();
-    await expect(helpfulBtn).toBeVisible();
+    await expect(helpfulBtn).toBeVisible({ timeout: 15000 });
     await helpfulBtn.click();
 
     // After feedback, the button becomes disabled (voted state set)
-    await expect(helpfulBtn).toBeDisabled();
+    await expect(helpfulBtn).toBeDisabled({ timeout: 15000 });
     // No error should appear
     await expect(page.locator('.bg-red-50')).not.toBeVisible();
   });

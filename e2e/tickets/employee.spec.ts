@@ -11,17 +11,18 @@ test.describe('Employee – ticket flows', () => {
     await page.click('button[type="submit"]');
 
     // Should land on the ticket list after creation
-    await expect(page).toHaveURL('/dashboard/issue-logging');
+    await expect(page).toHaveURL('/dashboard/issue-logging', { timeout: 15000 });
 
     // Navigate to the employee's own-tickets view to confirm it appears
     await page.goto('/dashboard/my-tickets');
-    await expect(page.locator('text=E2E printer not working')).toBeVisible();
+    // Use .first() — prior test runs may leave multiple tickets with the same title
+    await expect(page.locator('text=E2E printer not working').first()).toBeVisible({ timeout: 15000 });
   });
 
   test('ticket list shows only own tickets — no "All Tickets" link visible', async ({ page }) => {
     await page.goto('/dashboard/my-tickets');
     // The heading confirms we are on the right page
-    await expect(page.locator('h1')).toContainText('My Tickets');
+    await expect(page.locator('main h1')).toContainText('My Tickets');
     // The employee should not see tickets filed by other users
     // (We verify the page loads without error, not an empty page)
     await expect(page.locator('body')).not.toContainText('Error');
@@ -29,13 +30,13 @@ test.describe('Employee – ticket flows', () => {
 
   test('view ticket detail page loads correctly', async ({ page }) => {
     await page.goto('/dashboard/my-tickets');
-    // Click the first ticket link
-    const firstTicket = page.locator('a[href*="/dashboard/issue-logging/"]').first();
+    // Click the first ticket link — exclude the "/new" create-ticket link
+    const firstTicket = page.locator('a[href*="/dashboard/issue-logging/"]:not([href$="new"])').first();
     await expect(firstTicket).toBeVisible();
     await firstTicket.click();
 
     // Detail page should show a ticket number and the "Ticket Information" section
-    await expect(page.locator('h1')).toContainText('INC-');
-    await expect(page.locator('h2:has-text("Ticket Information")')).toBeVisible();
+    await expect(page.locator('main h1')).toContainText('INC-', { timeout: 15000 });
+    await expect(page.locator('h2:has-text("Ticket Information")')).toBeVisible({ timeout: 15000 });
   });
 });

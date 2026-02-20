@@ -12,6 +12,8 @@ const USERS = [
   { role: 'admin',    email: 'admin@company.com',     password: 'admin123' },
 ] as const;
 
+setup.setTimeout(120_000); // seed against remote DB can take ~60s
+
 setup('seed database and authenticate all roles', async ({ page }) => {
   // 1. Seed deterministic test data
   console.log('Seeding database...');
