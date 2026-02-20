@@ -307,6 +307,7 @@ export const knowledgeBaseArticles = pgTable('knowledge_base_articles', {
   helpfulCount: integer('helpful_count').notNull().default(0),
   notHelpfulCount: integer('not_helpful_count').notNull().default(0),
   isPublished: boolean('is_published').notNull().default(false),
+  isAgentOnly: boolean('is_agent_only').notNull().default(false),
   createdAt: timestamp('created_at')
     .notNull()
     .default(sql`now()`),
