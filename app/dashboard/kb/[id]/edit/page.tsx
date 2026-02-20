@@ -18,6 +18,7 @@ interface KBArticle {
   categoryId: number | null;
   createdBy: number;
   isPublished: boolean;
+  isAgentOnly: boolean;
 }
 
 export default function EditKBArticlePage(): JSX.Element {
@@ -29,6 +30,7 @@ export default function EditKBArticlePage(): JSX.Element {
   const [content, setContent] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [isPublished, setIsPublished] = useState(false);
+  const [isAgentOnly, setIsAgentOnly] = useState(false);
   const [preview, setPreview] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,6 +75,7 @@ export default function EditKBArticlePage(): JSX.Element {
         setContent(article.content);
         setCategoryId(article.categoryId ? String(article.categoryId) : '');
         setIsPublished(article.isPublished);
+        setIsAgentOnly(article.isAgentOnly);
       } catch {
         setError('Failed to load article.');
       } finally {
@@ -98,7 +101,8 @@ export default function EditKBArticlePage(): JSX.Element {
           title: title.trim(),
           content: content.trim(),
           categoryId: categoryId ? parseInt(categoryId) : undefined,
-          isPublished
+          isPublished,
+          isAgentOnly
         })
       });
       if (!res.ok) {
@@ -217,6 +221,19 @@ export default function EditKBArticlePage(): JSX.Element {
             />
             <label htmlFor="isPublished" className="text-sm text-gray-700">
               Published (visible to all users)
+            </label>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="isAgentOnly"
+              checked={isAgentOnly}
+              onChange={e => setIsAgentOnly(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            />
+            <label htmlFor="isAgentOnly" className="text-sm text-gray-700">
+              Restrict to agents only (not visible to employees)
             </label>
           </div>
         </div>
