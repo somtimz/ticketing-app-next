@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { knowledgeBaseArticles, categories } from '@/lib/db/schema';
-import { eq, and, or, ilike, sql, desc } from 'drizzle-orm';
+import { knowledgeBaseArticles, categories, articleTags, kbTags } from '@/lib/db/schema';
+import { eq, and, or, ilike, sql, desc, inArray } from 'drizzle-orm';
 import { requireAuth, requireRole, handleAPIError } from '@/lib/api-error';
 import { hasRole } from '@/lib/rbac';
 import { createKBArticleSchema } from '@/lib/validators';
@@ -68,6 +68,7 @@ export async function GET(req: NextRequest) {
         notHelpfulCount: knowledgeBaseArticles.notHelpfulCount,
         isPublished: knowledgeBaseArticles.isPublished,
         isAgentOnly: knowledgeBaseArticles.isAgentOnly,
+        publishedAt: knowledgeBaseArticles.publishedAt,
         createdAt: knowledgeBaseArticles.createdAt,
         updatedAt: knowledgeBaseArticles.updatedAt
       })
@@ -78,8 +79,27 @@ export async function GET(req: NextRequest) {
       .limit(limit)
       .offset(offset);
 
+    const articleIds = articles.map(a => a.id);
+    const tagRows = articleIds.length > 0
+      ? await db
+          .select({
+            articleId: articleTags.articleId,
+            tagId: kbTags.id,
+            tagName: kbTags.name
+          })
+          .from(articleTags)
+          .innerJoin(kbTags, eq(articleTags.tagId, kbTags.id))
+          .where(inArray(articleTags.articleId, articleIds))
+      : [];
+
+    const tagsMap = new Map<number, { id: number; name: string }[]>();
+    for (const row of tagRows) {
+      if (!tagsMap.has(row.articleId)) tagsMap.set(row.articleId, []);
+      tagsMap.get(row.articleId)!.push({ id: row.tagId, name: row.tagName });
+    }
+
     return NextResponse.json({
-      articles,
+      articles: articles.map(a => ({ ...a, tags: tagsMap.get(a.id) ?? [] })),
       pagination: {
         total: count,
         page,
@@ -109,11 +129,18 @@ export async function POST(req: NextRequest) {
         categoryId: data.categoryId ?? null,
         isPublished: data.isPublished,
         isAgentOnly: data.isAgentOnly ?? false,
+        publishedAt: data.isPublished ? new Date() : null,
         createdBy: parseInt(session!.user!.id)
       })
       .returning();
 
-    return NextResponse.json(article, { status: 201 });
+    if (data.tagIds && data.tagIds.length > 0) {
+      await db.insert(articleTags).values(
+        data.tagIds.map(tagId => ({ articleId: article.id, tagId }))
+      );
+    }
+
+    return NextResponse.json({ ...article, tags: data.tagIds ?? [] }, { status: 201 });
   } catch (error) {
     return handleAPIError(error);
   }
