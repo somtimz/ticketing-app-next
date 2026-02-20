@@ -6,8 +6,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { knowledgeBaseArticles, categories } from '@/lib/db/schema';
-import { eq, and, or, ilike, sql, desc, ne } from 'drizzle-orm';
+import { knowledgeBaseArticles, categories, articleTags, kbTags } from '@/lib/db/schema';
+import { eq, and, or, ilike, sql, desc, ne, inArray } from 'drizzle-orm';
 import { handleAPIError } from '@/lib/api-error';
 import { hasRole } from '@/lib/rbac';
 
@@ -75,6 +75,7 @@ export async function GET(req: NextRequest) {
         helpfulCount: knowledgeBaseArticles.helpfulCount,
         notHelpfulCount: knowledgeBaseArticles.notHelpfulCount,
         isAgentOnly: knowledgeBaseArticles.isAgentOnly,
+        publishedAt: knowledgeBaseArticles.publishedAt,
         createdAt: knowledgeBaseArticles.createdAt,
         updatedAt: knowledgeBaseArticles.updatedAt
       })
@@ -113,8 +114,31 @@ export async function GET(req: NextRequest) {
       return b.helpfulCount - a.helpfulCount;
     });
 
+    // Fetch tags for all articles
+    const articleIds = scoredArticles.map(a => a.id);
+    const tagRows = articleIds.length > 0
+      ? await db
+          .select({
+            articleId: articleTags.articleId,
+            tagId: kbTags.id,
+            tagName: kbTags.name
+          })
+          .from(articleTags)
+          .innerJoin(kbTags, eq(articleTags.tagId, kbTags.id))
+          .where(inArray(articleTags.articleId, articleIds))
+      : [];
+
+    const tagsMap = new Map<number, { id: number; name: string }[]>();
+    for (const row of tagRows) {
+      if (!tagsMap.has(row.articleId)) tagsMap.set(row.articleId, []);
+      tagsMap.get(row.articleId)!.push({ id: row.tagId, name: row.tagName });
+    }
+
     return NextResponse.json({
-      articles: scoredArticles.map(({ score, ...article }) => article),
+      articles: scoredArticles.map(({ score, ...article }) => ({
+        ...article,
+        tags: tagsMap.get(article.id) ?? []
+      })),
       pagination: {
         total: count,
         page,
