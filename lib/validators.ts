@@ -60,7 +60,8 @@ export const createKBArticleSchema = z.object({
   title: z.string().min(1, 'Title is required').max(500, 'Title is too long'),
   content: z.string().min(1, 'Content is required'),
   categoryId: z.number().int().optional(),
-  isPublished: z.boolean().default(false)
+  isPublished: z.boolean().default(false),
+  isAgentOnly: z.boolean().default(false)
 });
 export const updateKBArticleSchema = createKBArticleSchema.partial();
 export type CreateKBArticleInput = z.infer<typeof createKBArticleSchema>;
