@@ -24,6 +24,9 @@ export default function NewKBArticlePage(): JSX.Element {
   const [preview, setPreview] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [allTags, setAllTags] = useState<{ id: number; name: string }[]>([]);
+  const [selectedTags, setSelectedTags] = useState<{ id: number; name: string }[]>([]);
+  const [tagInput, setTagInput] = useState('');
 
   const userRole = session?.user?.role as string | undefined;
   const isAgent = userRole === 'Agent' || userRole === 'TeamLead' || userRole === 'Admin';
@@ -37,14 +40,44 @@ export default function NewKBArticlePage(): JSX.Element {
   useEffect(() => {
     void (async () => {
       try {
-        const res = await fetch('/api/categories');
-        const data = await res.json() as { categories: Category[] };
-        setCategories(data.categories ?? []);
+        const [catRes, tagsRes] = await Promise.all([
+          fetch('/api/categories'),
+          fetch('/api/kb/tags')
+        ]);
+        const catData = await catRes.json() as { categories: Category[] };
+        const tagsData = await tagsRes.json() as { tags: { id: number; name: string }[] };
+        setCategories(catData.categories ?? []);
+        setAllTags(tagsData.tags ?? []);
       } catch {
-        console.error('Failed to fetch categories');
+        console.error('Failed to fetch categories or tags');
       }
     })();
   }, []);
+
+  const addTag = async (name: string) => {
+    const trimmed = name.trim().toLowerCase();
+    if (!trimmed || selectedTags.some(t => t.name === trimmed)) return;
+    const existing = allTags.find(t => t.name === trimmed);
+    if (existing) {
+      setSelectedTags(prev => [...prev, existing]);
+    } else {
+      const res = await fetch('/api/kb/tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed })
+      });
+      if (res.ok) {
+        const tag = await res.json() as { id: number; name: string };
+        setAllTags(prev => [...prev, tag].sort((a, b) => a.name.localeCompare(b.name)));
+        setSelectedTags(prev => [...prev, tag]);
+      }
+    }
+    setTagInput('');
+  };
+
+  const removeTag = (id: number) => {
+    setSelectedTags(prev => prev.filter(t => t.id !== id));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +96,8 @@ export default function NewKBArticlePage(): JSX.Element {
           content: content.trim(),
           categoryId: categoryId ? parseInt(categoryId) : undefined,
           isPublished,
-          isAgentOnly
+          isAgentOnly,
+          tagIds: selectedTags.map(t => t.id)
         })
       });
       if (!res.ok) {
@@ -189,6 +223,56 @@ export default function NewKBArticlePage(): JSX.Element {
             <label htmlFor="isAgentOnly" className="text-sm text-gray-700">
               Restrict to agents only (not visible to employees)
             </label>
+          </div>
+
+          {/* Tags */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+            {selectedTags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-2">
+                {selectedTags.map(tag => (
+                  <span key={tag.id} className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-700">
+                    {tag.name}
+                    <button
+                      type="button"
+                      onClick={() => removeTag(tag.id)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <input
+                  type="text"
+                  value={tagInput}
+                  onChange={e => setTagInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void addTag(tagInput); } }}
+                  placeholder="Add a tag..."
+                  list="tag-suggestions"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <datalist id="tag-suggestions">
+                  {allTags
+                    .filter(t => !selectedTags.some(s => s.id === t.id))
+                    .filter(t => t.name.includes(tagInput.toLowerCase()))
+                    .map(tag => (
+                      <option key={tag.id} value={tag.name} />
+                    ))}
+                </datalist>
+              </div>
+              <button
+                type="button"
+                onClick={() => void addTag(tagInput)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+              >
+                Add
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-gray-400">Press Enter or click Add. New tag names are created automatically.</p>
           </div>
         </div>
 
