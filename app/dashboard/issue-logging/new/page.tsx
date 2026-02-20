@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { PlusCircleIcon, CheckIcon } from '@heroicons/react/24/outline';
 import type { CreateTicketRequest } from '@/types';
 
 interface Category {
@@ -137,7 +138,10 @@ export default function NewIssuePage(): JSX.Element {
   return (
     <div className="max-w-3xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">New Issue</h1>
+        <div className="flex items-center gap-2">
+          <PlusCircleIcon className="h-6 w-6 text-violet-600" />
+          <h1 className="text-2xl font-semibold text-gray-900">New Issue</h1>
+        </div>
         <p className="mt-1 text-sm text-gray-500">Log a new issue from a caller</p>
       </div>
 
@@ -356,8 +360,9 @@ export default function NewIssuePage(): JSX.Element {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="px-4 py-2 bg-primary-600 text-white rounded-md text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-md text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
           >
+            <CheckIcon className="h-4 w-4" />
             {isSubmitting ? 'Creating...' : 'Create Ticket'}
           </button>
         </div>

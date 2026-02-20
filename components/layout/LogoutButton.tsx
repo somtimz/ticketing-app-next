@@ -1,6 +1,7 @@
 'use client';
 
 import { signOut, useSession } from 'next-auth/react';
+import { ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
 
 export default function LogoutButton(): JSX.Element {
   const { data: session } = useSession();
@@ -16,9 +17,10 @@ export default function LogoutButton(): JSX.Element {
   return (
     <button
       onClick={handleLogout}
-      className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+      title="Logout"
+      className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-md transition-colors"
     >
-      Logout
+      <ArrowRightOnRectangleIcon className="h-5 w-5" />
     </button>
   );
 }

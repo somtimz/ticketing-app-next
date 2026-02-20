@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
+import { BookOpenIcon, MagnifyingGlassIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
 
 interface KBArticle {
   id: number;
@@ -121,7 +122,10 @@ export default function KBPage(): JSX.Element {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Knowledge Base</h1>
+          <div className="flex items-center gap-2">
+            <BookOpenIcon className="h-6 w-6 text-violet-600" />
+            <h1 className="text-2xl font-semibold text-gray-900">Knowledge Base</h1>
+          </div>
           <p className="mt-1 text-sm text-gray-500">
             Browse and search help articles
           </p>
@@ -129,8 +133,9 @@ export default function KBPage(): JSX.Element {
         {isAgent && (
           <Link
             href="/dashboard/kb/new"
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
           >
+            <PlusCircleIcon className="h-4 w-4" />
             New Article
           </Link>
         )}
@@ -138,13 +143,16 @@ export default function KBPage(): JSX.Element {
 
       {/* Search + Filter */}
       <div className="flex gap-3">
-        <input
-          type="text"
-          placeholder="Search articles..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-        />
+        <div className="flex-1 relative">
+          <MagnifyingGlassIcon className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search articles..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+        </div>
         <select
           value={categoryFilter}
           onChange={e => { setCategoryFilter(e.target.value); setPage(1); }}

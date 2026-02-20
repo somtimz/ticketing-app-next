@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { QueueListIcon } from '@heroicons/react/24/outline';
 import type { TicketWithRelations, TicketStatus } from '@/types';
 import { getSLAStatus } from '@/lib/sla';
 
@@ -92,7 +93,10 @@ export default function AllTicketsPage(): JSX.Element {
       {/* Page Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">All Tickets</h1>
+          <div className="flex items-center gap-2">
+            <QueueListIcon className="h-6 w-6 text-violet-600" />
+            <h1 className="text-2xl font-semibold text-gray-900">All Tickets</h1>
+          </div>
           <p className="mt-1 text-sm text-gray-500">
             View and manage all support tickets
           </p>

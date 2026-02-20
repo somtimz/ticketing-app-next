@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, type FormEvent } from 'react';
+import { TagIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
 
 interface Category {
   id: number;
@@ -119,14 +120,22 @@ export default function CategoriesPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Categories</h1>
+          <div className="flex items-center gap-2">
+            <TagIcon className="h-6 w-6 text-violet-600" />
+            <h1 className="text-2xl font-semibold text-gray-900">Categories</h1>
+          </div>
           <p className="mt-1 text-sm text-gray-500">Manage ticket categories and default agents</p>
         </div>
         <button
           onClick={() => { showForm ? resetForm() : setShowForm(true); }}
-          className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
         >
-          {showForm ? 'Cancel' : 'Add Category'}
+          {showForm ? 'Cancel' : (
+            <>
+              <PlusCircleIcon className="h-4 w-4" />
+              Add Category
+            </>
+          )}
         </button>
       </div>
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { TicketIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
 import type { TicketWithRelations, TicketStatus } from '@/types';
 import { getSLAStatus } from '@/lib/sla';
 
@@ -92,15 +93,19 @@ export default function MyTicketsPage(): JSX.Element {
       {/* Page Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">My Tickets</h1>
+          <div className="flex items-center gap-2">
+            <TicketIcon className="h-6 w-6 text-violet-600" />
+            <h1 className="text-2xl font-semibold text-gray-900">My Tickets</h1>
+          </div>
           <p className="mt-1 text-sm text-gray-500">
             Tickets assigned to you or created by you
           </p>
         </div>
         <Link
           href="/dashboard/issue-logging/new"
-          className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
         >
+          <PlusCircleIcon className="h-4 w-4" />
           New Issue
         </Link>
       </div>

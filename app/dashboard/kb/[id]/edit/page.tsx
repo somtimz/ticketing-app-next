@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import ReactMarkdown from 'react-markdown';
+import { PencilSquareIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 interface Category {
   id: number;
@@ -131,7 +132,10 @@ export default function EditKBArticlePage(): JSX.Element {
   return (
     <div className="max-w-4xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Edit Article</h1>
+        <div className="flex items-center gap-2">
+          <PencilSquareIcon className="h-6 w-6 text-violet-600" />
+          <h1 className="text-2xl font-semibold text-gray-900">Edit Article</h1>
+        </div>
       </div>
 
       <form onSubmit={e => void handleSubmit(e)} className="space-y-6">
@@ -221,15 +225,17 @@ export default function EditKBArticlePage(): JSX.Element {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium disabled:opacity-50"
           >
+            <CheckIcon className="h-4 w-4" />
             {isSubmitting ? 'Saving...' : 'Save Changes'}
           </button>
           <button
             type="button"
             onClick={() => router.back()}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
           >
+            <XMarkIcon className="h-4 w-4" />
             Cancel
           </button>
         </div>

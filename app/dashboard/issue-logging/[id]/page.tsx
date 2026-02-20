@@ -1,9 +1,30 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, type FormEvent } from 'react';
+import React, { useState, useEffect, useRef, useCallback, type FormEvent } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
+import {
+  SparklesIcon,
+  UserCircleIcon,
+  ArrowPathIcon as ArrowPathSolid,
+  PauseCircleIcon,
+  CheckCircleIcon,
+  LockClosedIcon,
+  ExclamationCircleIcon,
+  ArrowUpCircleIcon,
+  MinusCircleIcon,
+  ArrowDownCircleIcon
+} from '@heroicons/react/24/solid';
+import {
+  ClipboardDocumentListIcon,
+  UserPlusIcon,
+  ArrowPathIcon,
+  CheckBadgeIcon,
+  ChatBubbleLeftIcon,
+  PhoneIcon,
+  PaperClipIcon
+} from '@heroicons/react/24/outline';
 import type { TicketWithRelations, TicketStatus, TicketPriority } from '@/types';
 import { getSLAStatus } from '@/lib/sla';
 
@@ -60,6 +81,22 @@ const PRIORITY_COLORS: Record<TicketPriority, string> = {
   P2: 'bg-priority-high text-white',
   P3: 'bg-priority-medium text-white',
   P4: 'bg-priority-low text-white'
+};
+
+const STATUS_ICONS: Record<TicketStatus, React.ElementType> = {
+  New: SparklesIcon,
+  Assigned: UserCircleIcon,
+  InProgress: ArrowPathSolid,
+  Pending: PauseCircleIcon,
+  Resolved: CheckCircleIcon,
+  Closed: LockClosedIcon
+};
+
+const PRIORITY_ICONS: Record<TicketPriority, React.ElementType> = {
+  P1: ExclamationCircleIcon,
+  P2: ArrowUpCircleIcon,
+  P3: MinusCircleIcon,
+  P4: ArrowDownCircleIcon
 };
 
 // ─── SLA Badge ───────────────────────────────────────────────────────────────
@@ -378,13 +415,20 @@ export default function TicketDetailPage(): JSX.Element {
       <div className="flex justify-between items-start">
         <div>
           <div className="flex flex-wrap items-center gap-2 mb-2">
+            <ClipboardDocumentListIcon className="h-6 w-6 text-violet-600" />
             <h1 className="text-2xl font-semibold text-gray-900">{ticket.ticketNumber}</h1>
-            <span className={`px-2 py-1 text-xs font-medium rounded ${STATUS_COLORS[ticket.status]}`}>
+            {(() => { const StatusIcon = STATUS_ICONS[ticket.status]; return (
+            <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded ${STATUS_COLORS[ticket.status]}`}>
+              <StatusIcon className="h-3.5 w-3.5" />
               {STATUS_LABELS[ticket.status]}
             </span>
-            <span className={`px-2 py-1 text-xs font-medium rounded ${PRIORITY_COLORS[ticket.priority]}`}>
+            ); })()}
+            {(() => { const PriorityIcon = PRIORITY_ICONS[ticket.priority]; return (
+            <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded ${PRIORITY_COLORS[ticket.priority]}`}>
+              <PriorityIcon className="h-3.5 w-3.5" />
               {ticket.priority}
             </span>
+            ); })()}
             <SLABadge ticket={ticket} />
           </div>
           <p className="text-gray-600">{ticket.title}</p>
@@ -547,8 +591,9 @@ export default function TicketDetailPage(): JSX.Element {
             <button
               type="submit"
               disabled={isPostingComment || !commentBody.trim()}
-              className="ml-auto px-4 py-2 bg-primary-600 text-white rounded-md text-sm hover:bg-primary-700 disabled:opacity-50"
+              className="ml-auto flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-md text-sm hover:bg-primary-700 disabled:opacity-50"
             >
+              <ChatBubbleLeftIcon className="h-4 w-4" />
               {isPostingComment ? 'Posting...' : 'Post Comment'}
             </button>
           </div>
@@ -591,8 +636,9 @@ export default function TicketDetailPage(): JSX.Element {
           <h2 className="text-lg font-medium text-gray-900">
             Attachments {attachments.length > 0 && <span className="text-gray-400 text-base font-normal">({attachments.length})</span>}
           </h2>
-          <label className="cursor-pointer px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
-            {isUploadingFile ? 'Uploading...' : '+ Attach File'}
+          <label className="cursor-pointer flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <PaperClipIcon className="h-4 w-4" />
+            {isUploadingFile ? 'Uploading...' : 'Attach File'}
             <input
               ref={fileInputRef}
               type="file"
@@ -752,8 +798,9 @@ export default function TicketDetailPage(): JSX.Element {
                 <button
                   type="submit"
                   disabled={isUpdating}
-                  className="px-4 py-2 bg-primary-600 text-white rounded-md text-sm hover:bg-primary-700 disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-md text-sm hover:bg-primary-700 disabled:opacity-50"
                 >
+                  <ArrowPathIcon className="h-4 w-4" />
                   {isUpdating ? 'Updating...' : 'Update'}
                 </button>
               </div>
@@ -787,8 +834,9 @@ export default function TicketDetailPage(): JSX.Element {
                   <button
                     type="submit"
                     disabled={isAssigning || !selectedAgentId}
-                    className="px-4 py-2 bg-primary-600 text-white rounded-md text-sm hover:bg-primary-700 disabled:opacity-50"
+                    className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-md text-sm hover:bg-primary-700 disabled:opacity-50"
                   >
+                    <UserPlusIcon className="h-4 w-4" />
                     {isAssigning ? 'Assigning...' : 'Assign'}
                   </button>
                 </div>
@@ -809,8 +857,9 @@ export default function TicketDetailPage(): JSX.Element {
               <button
                 type="submit"
                 disabled={isResolving}
-                className="px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 disabled:opacity-50"
               >
+                <CheckBadgeIcon className="h-4 w-4" />
                 {isResolving ? 'Resolving...' : 'Resolve Ticket'}
               </button>
             </form>
@@ -881,8 +930,9 @@ export default function TicketDetailPage(): JSX.Element {
                     <button
                       type="submit"
                       disabled={isLoggingCall}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 disabled:opacity-50"
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 disabled:opacity-50"
                     >
+                      <PhoneIcon className="h-4 w-4" />
                       {isLoggingCall ? 'Logging...' : 'Log Call'}
                     </button>
                   </form>

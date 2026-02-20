@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
 
 export default function LoginPage(): JSX.Element {
   const router = useRouter();
@@ -40,6 +41,9 @@ export default function LoginPage(): JSX.Element {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
+          <div className="w-10 h-10 rounded-xl bg-violet-600 flex items-center justify-center mx-auto mb-4">
+            <ClipboardDocumentListIcon className="h-6 w-6 text-white" />
+          </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Issue Logging System
           </h2>

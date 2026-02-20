@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import ReactMarkdown from 'react-markdown';
+import { BookOpenIcon, PencilSquareIcon, TrashIcon, HandThumbUpIcon, HandThumbDownIcon } from '@heroicons/react/24/outline';
 
 interface KBArticle {
   id: number;
@@ -141,7 +142,10 @@ export default function KBArticlePage(): JSX.Element {
                 </span>
               )}
             </div>
-            <h1 className="text-2xl font-semibold text-gray-900">{article.title}</h1>
+            <div className="flex items-center gap-2">
+              <BookOpenIcon className="h-6 w-6 text-violet-600" />
+              <h1 className="text-2xl font-semibold text-gray-900">{article.title}</h1>
+            </div>
             <div className="mt-2 flex flex-wrap gap-4 text-xs text-gray-500">
               {article.authorName && <span>By {article.authorName}</span>}
               <span>Updated {new Date(article.updatedAt).toLocaleDateString()}</span>
@@ -153,16 +157,18 @@ export default function KBArticlePage(): JSX.Element {
             <div className="flex items-center gap-2">
               <Link
                 href={`/dashboard/kb/${id}/edit`}
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap"
+                className="flex items-center gap-2 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap"
               >
+                <PencilSquareIcon className="h-4 w-4" />
                 Edit
               </Link>
               {canDelete && (
                 <button
                   onClick={() => void handleDelete()}
                   disabled={isDeleting}
-                  className="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap disabled:opacity-50"
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap disabled:opacity-50"
                 >
+                  <TrashIcon className="h-4 w-4" />
                   {isDeleting ? 'Deleting...' : 'Delete'}
                 </button>
               )}
@@ -193,7 +199,7 @@ export default function KBArticlePage(): JSX.Element {
                 : 'border-gray-300 text-gray-700 hover:bg-gray-50'
             }`}
           >
-            👍 Yes ({article.helpfulCount})
+            <HandThumbUpIcon className="h-4 w-4" /> Yes ({article.helpfulCount})
           </button>
           <button
             onClick={() => void handleFeedback('not_helpful')}
@@ -206,7 +212,7 @@ export default function KBArticlePage(): JSX.Element {
                 : 'border-gray-300 text-gray-700 hover:bg-gray-50'
             }`}
           >
-            👎 No ({article.notHelpfulCount})
+            <HandThumbDownIcon className="h-4 w-4" /> No ({article.notHelpfulCount})
           </button>
           {voted && (
             <span className="text-xs text-gray-500">Thanks for your feedback!</span>

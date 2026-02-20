@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, type FormEvent } from 'react';
+import { UsersIcon, UserPlusIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import type { UserRole } from '@/types';
 
 const ROLES: UserRole[] = ['Agent', 'TeamLead', 'Admin', 'Employee'];
@@ -101,16 +102,29 @@ export default function AgentsPage(): JSX.Element {
       {/* Page Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Manage Agents</h1>
+          <div className="flex items-center gap-2">
+            <UsersIcon className="h-6 w-6 text-violet-600" />
+            <h1 className="text-2xl font-semibold text-gray-900">Manage Agents</h1>
+          </div>
           <p className="mt-1 text-sm text-gray-500">
             Add and manage support agents
           </p>
         </div>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
         >
-          {showAddForm ? 'Cancel' : 'Add Agent'}
+          {showAddForm ? (
+            <>
+              <XMarkIcon className="h-4 w-4" />
+              Cancel
+            </>
+          ) : (
+            <>
+              <UserPlusIcon className="h-4 w-4" />
+              Add Agent
+            </>
+          )}
         </button>
       </div>
 
@@ -217,15 +231,17 @@ export default function AgentsPage(): JSX.Element {
               <button
                 type="button"
                 onClick={() => setShowAddForm(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
+                <XMarkIcon className="h-4 w-4" />
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-4 py-2 bg-primary-600 text-white rounded-md text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-md text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
               >
+                <CheckIcon className="h-4 w-4" />
                 {isSubmitting ? 'Creating...' : 'Create Agent'}
               </button>
             </div>

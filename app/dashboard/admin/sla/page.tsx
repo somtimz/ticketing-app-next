@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, type FormEvent } from 'react';
+import { ClockIcon } from '@heroicons/react/24/outline';
 
 interface SLAPolicy {
   id: number;
@@ -108,7 +109,10 @@ export default function SLAPoliciesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">SLA Policies</h1>
+        <div className="flex items-center gap-2">
+          <ClockIcon className="h-6 w-6 text-violet-600" />
+          <h1 className="text-2xl font-semibold text-gray-900">SLA Policies</h1>
+        </div>
         <p className="mt-1 text-sm text-gray-500">
           Configure first response and resolution targets per priority level
         </p>

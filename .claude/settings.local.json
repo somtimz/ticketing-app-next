@@ -97,7 +97,22 @@
       "mcp__claude_ai_Vercel__get_runtime_logs",
       "mcp__claude_ai_Vercel__get_deployment_build_logs",
       "Bash(openssl rand:*)",
-      "Bash(npx vercel env add:*)"
+      "Bash(npx vercel env add:*)",
+      "Bash(npx vercel:*)",
+      "Bash(npx vitest run:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(npx playwright install:*)",
+      "Bash(npx playwright:*)",
+      "Bash(grep:*)",
+      "Bash(npm run test:e2e:*)",
+      "Bash(kill:*)",
+      "Bash(fuser -k:*)",
+      "Bash(sudo apt-get:*)",
+      "Bash(sudo apt-get install:*)",
+      "Bash(~/.cache/ms-playwright/chromium-1208/chrome-linux64/chrome:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh auth status:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
