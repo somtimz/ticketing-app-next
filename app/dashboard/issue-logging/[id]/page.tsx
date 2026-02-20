@@ -27,6 +27,7 @@ import {
 } from '@heroicons/react/24/outline';
 import type { TicketWithRelations, TicketStatus, TicketPriority } from '@/types';
 import { getSLAStatus } from '@/lib/sla';
+import KbSuggestions from '@/components/tickets/KbSuggestions';
 
 // ─── Type helpers ────────────────────────────────────────────────────────────
 
@@ -938,6 +939,14 @@ export default function TicketDetailPage(): JSX.Element {
                   </form>
                 )}
               </div>
+            )}
+
+            {/* KB Suggestions (agent only) */}
+            {isAgent && ticket && (
+              <>
+                <hr className="border-gray-200" />
+                <KbSuggestions ticketTitle={ticket.title} />
+              </>
             )}
           </div>
         </div>
