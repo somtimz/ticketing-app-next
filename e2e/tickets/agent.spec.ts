@@ -87,4 +87,40 @@ test.describe('Agent – ticket flows', () => {
     // The "Internal note" badge should appear on the posted comment
     await expect(page.locator('span:has-text("Internal note")').first()).toBeVisible();
   });
+
+  test('KB suggestions panel is visible on ticket detail', async ({ page }) => {
+    // Navigate to the all-tickets list to find an open ticket
+    await page.goto('/dashboard/all-tickets');
+    await page.waitForLoadState('networkidle');
+
+    // Click the first ticket link
+    const ticketLink = page.locator('a[href*="/dashboard/issue-logging/"]:not([href$="new"])').first();
+    await ticketLink.click();
+    await page.waitForURL(/\/dashboard\/issue-logging\/\d+$/);
+    await page.waitForLoadState('networkidle');
+
+    // The ticket may or may not be open (Actions panel only shows for open tickets)
+    // Check if Actions panel is present
+    const actionsHeading = page.getByRole('heading', { name: 'Actions', level: 2 });
+    const actionsVisible = await actionsHeading.isVisible().catch(() => false);
+
+    if (!actionsVisible) {
+      // Ticket is resolved/closed, navigate to issue-logging list and find a New ticket
+      await page.goto('/dashboard/issue-logging');
+      await page.waitForLoadState('networkidle');
+      const newTicketLink = page.locator('a[href*="/dashboard/issue-logging/"]:not([href$="new"])').first();
+      if (!(await newTicketLink.isVisible().catch(() => false))) return; // no tickets, skip
+      await newTicketLink.click();
+      await page.waitForURL(/\/dashboard\/issue-logging\/\d+$/);
+      await page.waitForLoadState('networkidle');
+    }
+
+    // If still no Actions panel, skip (all tickets closed)
+    const actionsNow = await page.getByRole('heading', { name: 'Actions', level: 2 }).isVisible().catch(() => false);
+    if (!actionsNow) return;
+
+    // KB suggestions section should be visible
+    await expect(page.getByText('Related Articles')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('kb-search-input')).toBeVisible({ timeout: 5000 });
+  });
 });

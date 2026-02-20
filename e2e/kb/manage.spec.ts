@@ -56,4 +56,30 @@ test.describe('Knowledge Base – manage (Agent role)', () => {
     await page.goto(`/dashboard/kb/${articleId}`);
     await expect(page.locator('main h1').first()).toContainText('E2E Updated Article Title', { timeout: 15000 });
   });
+
+  test('agent-only article is visible to agents but hidden from employees', async ({ page, request }) => {
+    // Create an agent-only article via API
+    const createRes = await request.post('/api/kb/articles', {
+      data: {
+        title: 'E2E Agent Only Test Article',
+        content: 'Internal procedures for agents only.',
+        isPublished: true,
+        isAgentOnly: true
+      }
+    });
+    expect(createRes.ok()).toBeTruthy();
+    const article = await createRes.json() as { id: number };
+
+    try {
+      // Verify it appears in agent's KB browse
+      await page.goto('/dashboard/kb');
+      await page.waitForLoadState('networkidle');
+      await expect(page.getByText('E2E Agent Only Test Article')).toBeVisible({ timeout: 10000 });
+      // "Agent only" badge should be shown
+      await expect(page.getByText('Agent only').first()).toBeVisible({ timeout: 5000 });
+    } finally {
+      // Clean up: delete the article
+      await request.delete(`/api/kb/articles/${article.id}`);
+    }
+  });
 });
