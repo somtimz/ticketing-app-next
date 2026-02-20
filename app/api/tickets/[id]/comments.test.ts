@@ -51,6 +51,15 @@ function makeCommentChain(result: any[] = []) {
   return chain;
 }
 
+// Chain for caller lookup: .from().where().limit()
+function makeCallerChain(result: any[] = []) {
+  const chain: any = {};
+  chain.from = vi.fn(() => chain);
+  chain.where = vi.fn(() => chain);
+  chain.limit = vi.fn().mockResolvedValue(result);
+  return chain;
+}
+
 // Chain for update: .set().where()
 function makeUpdateChain() {
   return {
@@ -230,5 +239,56 @@ describe('POST /api/tickets/[id]/comments', () => {
     );
     expect(response.status).toBe(201);
     expect(capturedValues.isInternal).toBe(true);
+  });
+
+  it('sends email to caller when a public comment is posted', async () => {
+    const { sendTicketCommentEmail } = await import('@/lib/email');
+
+    vi.mocked(auth).mockResolvedValueOnce(makeSession('Agent', '99') as any);
+    vi.mocked(db.query.tickets.findFirst)
+      .mockResolvedValueOnce({ id: 1 } as any) // ticket exists check
+      .mockResolvedValueOnce({                  // full ticket with caller, no assigned agent
+        id: 1,
+        ticketNumber: 'INC-0001',
+        title: 'Printer broken',
+        assignedAgentId: null,
+        callerId: 42
+      } as any);
+    vi.mocked(db.insert).mockReturnValue(makeInsertChain([publicComment]) as any);
+    vi.mocked(db.update).mockReturnValue(makeUpdateChain() as any);
+    vi.mocked(db.select).mockReturnValue(
+      makeCallerChain([{ email: 'caller@example.com' }]) as any
+    );
+
+    const response = await POST(
+      makeRequest('POST', '1', { body: 'We are looking into this.' }) as any,
+      makeParams('1')
+    );
+    expect(response.status).toBe(201);
+    await vi.runAllTimersAsync().catch(() => {}); // flush void promises
+    expect(sendTicketCommentEmail).toHaveBeenCalledWith(
+      'caller@example.com',
+      'INC-0001',
+      'Printer broken',
+      'Agent',
+      'We are looking into this.',
+      1
+    );
+  });
+
+  it('does not send caller email for internal notes', async () => {
+    const { sendTicketCommentEmail } = await import('@/lib/email');
+
+    vi.mocked(auth).mockResolvedValueOnce(makeSession('Agent', '5') as any);
+    vi.mocked(db.query.tickets.findFirst)
+      .mockResolvedValueOnce({ id: 1 } as any);
+    vi.mocked(db.insert).mockReturnValue(makeInsertChain([internalComment]) as any);
+    vi.mocked(db.update).mockReturnValue(makeUpdateChain() as any);
+
+    await POST(
+      makeRequest('POST', '1', { body: 'Internal note', isInternal: true }) as any,
+      makeParams('1')
+    );
+    expect(sendTicketCommentEmail).not.toHaveBeenCalled();
   });
 });

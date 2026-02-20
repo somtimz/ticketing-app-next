@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { comments, tickets, users } from '@/lib/db/schema';
+import { comments, tickets, users, callers } from '@/lib/db/schema';
 import { eq, asc } from 'drizzle-orm';
 import { requireAuth, handleAPIError } from '@/lib/api-error';
 import { hasRole } from '@/lib/rbac';
@@ -118,6 +118,7 @@ export async function POST(
 
       if (fullTicket) {
         const commenterName = session!.user.name || 'Support Agent';
+
         // Notify assigned agent if commenter is not the agent
         if (fullTicket.assignedAgentId && String(fullTicket.assignedAgentId) !== session!.user.id) {
           const agent = await db.query.users.findFirst({
@@ -125,6 +126,15 @@ export async function POST(
           });
           if (agent?.email) {
             void sendTicketCommentEmail(agent.email, fullTicket.ticketNumber, fullTicket.title, commenterName, validated.body, ticketId);
+          }
+        }
+
+        // Notify caller if they have an email and are not the commenter
+        if (fullTicket.callerId) {
+          const caller = await db.select({ email: callers.email }).from(callers).where(eq(callers.id, fullTicket.callerId)).limit(1);
+          const callerEmail = caller[0]?.email;
+          if (callerEmail) {
+            void sendTicketCommentEmail(callerEmail, fullTicket.ticketNumber, fullTicket.title, commenterName, validated.body, ticketId);
           }
         }
       }

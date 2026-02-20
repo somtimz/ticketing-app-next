@@ -6,6 +6,7 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     setupFiles: [],
+    exclude: ['**/node_modules/**', '**/dist/**', '.worktrees/**', 'e2e/**'],
   },
   resolve: {
     alias: {
