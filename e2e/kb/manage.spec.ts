@@ -82,4 +82,42 @@ test.describe('Knowledge Base – manage (Agent role)', () => {
       await request.delete(`/api/kb/articles/${article.id}`);
     }
   });
+
+  test('article with tags shows tag pills on browse and detail', async ({ page, request }) => {
+    // Create a tag via API
+    const tagRes = await request.post('/api/kb/tags', { data: { name: 'e2e-test-tag' } });
+    expect(tagRes.ok()).toBeTruthy();
+    const { id: tagId } = await tagRes.json() as { id: number };
+
+    // Create a published article with that tag via API
+    const createRes = await request.post('/api/kb/articles', {
+      data: {
+        title: 'E2E Tagged Article',
+        content: 'Article with a tag for E2E testing.',
+        isPublished: true,
+        tagIds: [tagId]
+      }
+    });
+    expect(createRes.ok()).toBeTruthy();
+    const { id: articleId } = await createRes.json() as { id: number };
+
+    try {
+      // Browse list shows the tag pill
+      await page.goto('/dashboard/kb');
+      await page.waitForLoadState('networkidle');
+      await expect(page.getByText('E2E Tagged Article')).toBeVisible({ timeout: 10000 });
+      // Use a span selector to avoid matching hidden <option> elements in the tag filter dropdown
+      await expect(page.locator('span', { hasText: 'e2e-test-tag' }).first()).toBeVisible({ timeout: 5000 });
+
+      // Browse list shows Published badge (agents see green Published badge)
+      await expect(page.locator('span', { hasText: 'Published' }).first()).toBeVisible({ timeout: 5000 });
+
+      // Article detail shows tag pill
+      await page.goto(`/dashboard/kb/${articleId}`);
+      await page.waitForLoadState('networkidle');
+      await expect(page.locator('span', { hasText: 'e2e-test-tag' }).first()).toBeVisible({ timeout: 10000 });
+    } finally {
+      await request.delete(`/api/kb/articles/${articleId}`);
+    }
+  });
 });
