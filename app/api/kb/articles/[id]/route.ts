@@ -25,6 +25,7 @@ async function getArticle(id: number, isAgent: boolean) {
       helpfulCount: knowledgeBaseArticles.helpfulCount,
       notHelpfulCount: knowledgeBaseArticles.notHelpfulCount,
       isPublished: knowledgeBaseArticles.isPublished,
+      isAgentOnly: knowledgeBaseArticles.isAgentOnly,
       createdAt: knowledgeBaseArticles.createdAt,
       updatedAt: knowledgeBaseArticles.updatedAt
     })
@@ -54,6 +55,10 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     const article = await getArticle(articleId, isAgent);
 
     if (!article) throw new APIError(404, 'not_found', 'Article not found');
+
+    if (article.isAgentOnly && !isAgent) {
+      throw new APIError(403, 'forbidden', 'This article is restricted to agents');
+    }
 
     // Fire-and-forget view count increment
     void db
