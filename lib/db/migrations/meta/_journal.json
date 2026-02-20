@@ -8,6 +8,13 @@
       "when": 1771601633028,
       "tag": "0000_skinny_blizzard",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1771607696914,
+      "tag": "0001_minor_ben_grimm",
+      "breakpoints": true
     }
   ]
 }

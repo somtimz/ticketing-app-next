@@ -308,12 +308,32 @@ export const knowledgeBaseArticles = pgTable('knowledge_base_articles', {
   notHelpfulCount: integer('not_helpful_count').notNull().default(0),
   isPublished: boolean('is_published').notNull().default(false),
   isAgentOnly: boolean('is_agent_only').notNull().default(false),
+  publishedAt: timestamp('published_at'),
   createdAt: timestamp('created_at')
     .notNull()
     .default(sql`now()`),
   updatedAt: timestamp('updated_at')
     .notNull()
     .default(sql`now()`)
+});
+
+// Knowledge Base Tags table
+export const kbTags = pgTable('kb_tags', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull().unique(),
+  createdAt: timestamp('created_at')
+    .notNull()
+    .default(sql`now()`)
+});
+
+// Article ↔ Tag join table (many-to-many)
+export const articleTags = pgTable('article_tags', {
+  articleId: integer('article_id')
+    .notNull()
+    .references(() => knowledgeBaseArticles.id, { onDelete: 'cascade' }),
+  tagId: integer('tag_id')
+    .notNull()
+    .references(() => kbTags.id, { onDelete: 'cascade' })
 });
 
 // Type exports
@@ -345,3 +365,6 @@ export type Attachment = typeof attachments.$inferSelect;
 export type NewAttachment = typeof attachments.$inferInsert;
 export type KnowledgeBaseArticle = typeof knowledgeBaseArticles.$inferSelect;
 export type NewKnowledgeBaseArticle = typeof knowledgeBaseArticles.$inferInsert;
+export type KbTag = typeof kbTags.$inferSelect;
+export type NewKbTag = typeof kbTags.$inferInsert;
+export type ArticleTag = typeof articleTags.$inferSelect;
