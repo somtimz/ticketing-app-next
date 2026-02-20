@@ -19,8 +19,10 @@ interface KBArticle {
   helpfulCount: number;
   notHelpfulCount: number;
   isPublished: boolean;
+  publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  tags: { id: number; name: string }[];
 }
 
 export default function KBArticlePage(): JSX.Element {
@@ -136,11 +138,16 @@ export default function KBArticlePage(): JSX.Element {
                   {article.categoryName}
                 </span>
               )}
-              {isAgent && !article.isPublished && (
-                <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700">
-                  Draft
-                </span>
+              {isAgent && (
+                article.isPublished
+                  ? <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700">Published</span>
+                  : <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700">Draft</span>
               )}
+              {article.tags && article.tags.length > 0 && article.tags.map(tag => (
+                <span key={tag.id} className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">
+                  {tag.name}
+                </span>
+              ))}
             </div>
             <div className="flex items-center gap-2">
               <BookOpenIcon className="h-6 w-6 text-violet-600" />
@@ -148,7 +155,11 @@ export default function KBArticlePage(): JSX.Element {
             </div>
             <div className="mt-2 flex flex-wrap gap-4 text-xs text-gray-500">
               {article.authorName && <span>By {article.authorName}</span>}
-              <span>Updated {new Date(article.updatedAt).toLocaleDateString()}</span>
+              <span>
+                {article.isPublished && article.publishedAt
+                  ? `Published ${new Date(article.publishedAt).toLocaleDateString()}`
+                  : `Updated ${new Date(article.updatedAt).toLocaleDateString()}`}
+              </span>
               <span>{article.viewCount} views</span>
               <span>{article.helpfulCount} found helpful</span>
             </div>
