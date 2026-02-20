@@ -28,8 +28,8 @@ test.describe('Login', () => {
     await page.click('button[type="submit"]');
     await expect(page).toHaveURL('/dashboard/issue-logging');
 
-    // Click the Logout button in the header
-    await page.click('button:has-text("Logout")');
+    // Click the Logout button in the header (icon-only button with title="Logout")
+    await page.click('button[title="Logout"]');
     await expect(page).toHaveURL('/login');
 
     // Confirm dashboard is now protected — should redirect back to login
