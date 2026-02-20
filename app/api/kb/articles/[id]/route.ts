@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { knowledgeBaseArticles, categories, users } from '@/lib/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { knowledgeBaseArticles, categories, users, articleTags, kbTags } from '@/lib/db/schema';
+import { eq, and, sql, inArray } from 'drizzle-orm';
 import { requireAuth, requireRole, handleAPIError, APIError } from '@/lib/api-error';
 import { hasRole } from '@/lib/rbac';
 import { updateKBArticleSchema } from '@/lib/validators';
@@ -27,7 +27,8 @@ async function getArticle(id: number, isAgent: boolean) {
       isPublished: knowledgeBaseArticles.isPublished,
       isAgentOnly: knowledgeBaseArticles.isAgentOnly,
       createdAt: knowledgeBaseArticles.createdAt,
-      updatedAt: knowledgeBaseArticles.updatedAt
+      updatedAt: knowledgeBaseArticles.updatedAt,
+      publishedAt: knowledgeBaseArticles.publishedAt
     })
     .from(knowledgeBaseArticles)
     .leftJoin(categories, eq(knowledgeBaseArticles.categoryId, categories.id))
@@ -70,7 +71,13 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
       .set({ viewCount: sql`${knowledgeBaseArticles.viewCount} + 1` })
       .where(eq(knowledgeBaseArticles.id, articleId));
 
-    return NextResponse.json(article);
+    const tagRows = await db
+      .select({ id: kbTags.id, name: kbTags.name })
+      .from(articleTags)
+      .innerJoin(kbTags, eq(articleTags.tagId, kbTags.id))
+      .where(eq(articleTags.articleId, articleId));
+
+    return NextResponse.json({ ...article, tags: tagRows });
   } catch (error) {
     return handleAPIError(error);
   }
@@ -103,17 +110,46 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     const body = await req.json();
     const data = updateKBArticleSchema.parse(body);
 
+    // Set publishedAt on first publish
+    let publishedAt: Date | null | undefined = undefined;
+    if (data.isPublished === true) {
+      const [currentArticle] = await db
+        .select({ publishedAt: knowledgeBaseArticles.publishedAt })
+        .from(knowledgeBaseArticles)
+        .where(eq(knowledgeBaseArticles.id, articleId));
+      if (currentArticle && !currentArticle.publishedAt) {
+        publishedAt = new Date();
+      }
+    }
+
+    const { tagIds, ...articleData } = data;
     const [updated] = await db
       .update(knowledgeBaseArticles)
       .set({
-        ...data,
+        ...articleData,
         categoryId: data.categoryId ?? null,
+        ...(publishedAt !== undefined ? { publishedAt } : {}),
         updatedAt: new Date()
       })
       .where(eq(knowledgeBaseArticles.id, articleId))
       .returning();
 
-    return NextResponse.json(updated);
+    if (tagIds !== undefined) {
+      await db.delete(articleTags).where(eq(articleTags.articleId, articleId));
+      if (tagIds.length > 0) {
+        await db.insert(articleTags).values(
+          tagIds.map(tagId => ({ articleId, tagId }))
+        );
+      }
+    }
+
+    const tagRows = await db
+      .select({ id: kbTags.id, name: kbTags.name })
+      .from(articleTags)
+      .innerJoin(kbTags, eq(articleTags.tagId, kbTags.id))
+      .where(eq(articleTags.articleId, articleId));
+
+    return NextResponse.json({ ...updated, tags: tagRows });
   } catch (error) {
     return handleAPIError(error);
   }
