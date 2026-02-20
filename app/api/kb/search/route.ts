@@ -9,6 +9,7 @@ import { db } from '@/lib/db';
 import { knowledgeBaseArticles, categories } from '@/lib/db/schema';
 import { eq, and, or, ilike, sql, desc, ne } from 'drizzle-orm';
 import { handleAPIError } from '@/lib/api-error';
+import { hasRole } from '@/lib/rbac';
 
 // GET /api/kb/search?q=term - Search knowledge base articles
 export async function GET(req: NextRequest) {
@@ -21,8 +22,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const userRole = (session!.user as any)?.role as string | undefined;
-    const isAgent = userRole === 'Agent' || userRole === 'TeamLead' || userRole === 'Admin';
+    const isAgent = hasRole(session, 'Agent');
 
     const { searchParams } = new URL(req.url);
     const query = searchParams.get('q');

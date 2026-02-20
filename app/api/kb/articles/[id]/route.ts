@@ -35,7 +35,11 @@ async function getArticle(id: number, isAgent: boolean) {
     .where(
       isAgent
         ? eq(knowledgeBaseArticles.id, id)
-        : and(eq(knowledgeBaseArticles.id, id), eq(knowledgeBaseArticles.isPublished, true))
+        : and(
+            eq(knowledgeBaseArticles.id, id),
+            eq(knowledgeBaseArticles.isPublished, true),
+            eq(knowledgeBaseArticles.isAgentOnly, false)
+          )
     );
 
   return article ?? null;
