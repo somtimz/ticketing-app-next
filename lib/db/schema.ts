@@ -101,7 +101,6 @@ export const callers = pgTable('callers', {
 });
 
 // Categories table
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const categories: any = pgTable('categories', {
   id: serial('id').primaryKey(),
   name: text('name').notNull().unique(),
@@ -138,7 +137,6 @@ export const slaPolicies = pgTable('sla_policies', {
 });
 
 // Tickets table
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const tickets: any = pgTable('tickets', {
   id: serial('id').primaryKey(),
   ticketNumber: text('ticket_number').notNull().unique(),
