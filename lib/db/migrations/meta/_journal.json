@@ -15,6 +15,13 @@
       "when": 1771607696914,
       "tag": "0001_minor_ben_grimm",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772203653282,
+      "tag": "0002_happy_exiles",
+      "breakpoints": true
     }
   ]
 }

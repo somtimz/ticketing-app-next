@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, boolean, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, integer, boolean, timestamp, numeric } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 // Departments table (for team-level visibility)
@@ -334,6 +334,78 @@ export const articleTags = pgTable('article_tags', {
     .references(() => kbTags.id, { onDelete: 'cascade' })
 });
 
+// Assets table
+export const assets = pgTable('assets', {
+  id: serial('id').primaryKey(),
+  assetTag: text('asset_tag').notNull().unique(), // e.g. AST-0001
+  name: text('name').notNull(),
+  type: text('type', { enum: ['Hardware', 'Software'] }).notNull(),
+  make: text('make'),
+  model: text('model'),
+  serialNumber: text('serial_number'), // hardware serial OR software license key
+  status: text('status', { enum: ['Active', 'In Repair', 'Retired'] }).notNull().default('Active'),
+  location: text('location'),
+  purchaseDate: timestamp('purchase_date'),
+  warrantyExpiry: timestamp('warranty_expiry'),
+  cost: numeric('cost', { precision: 10, scale: 2 }), // e.g. "1299.99"
+  assignedUserId: integer('assigned_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').notNull().default(sql`now()`),
+  updatedAt: timestamp('updated_at').notNull().default(sql`now()`)
+});
+
+// Asset assignment history
+export const assetHistory = pgTable('asset_history', {
+  id: serial('id').primaryKey(),
+  assetId: integer('asset_id').notNull().references(() => assets.id, { onDelete: 'cascade' }),
+  assignedToUserId: integer('assigned_to_user_id').references(() => users.id, { onDelete: 'set null' }),
+  assignedByUserId: integer('assigned_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  assignedAt: timestamp('assigned_at').notNull().default(sql`now()`),
+  returnedAt: timestamp('returned_at'),
+  notes: text('notes')
+});
+
+// Service Requests table (REQ-XXXX)
+export const serviceRequests = pgTable('service_requests', {
+  id: serial('id').primaryKey(),
+  requestNumber: text('request_number').notNull().unique(), // e.g. REQ-0001
+  title: text('title').notNull(),
+  description: text('description').notNull(),
+  category: text('category', {
+    enum: ['New Equipment', 'Software Access', 'Account Setup', 'Hardware Repair', 'Other']
+  }).notNull(),
+  status: text('status', {
+    enum: ['Submitted', 'Approved', 'In Progress', 'Fulfilled', 'Rejected']
+  }).notNull().default('Submitted'),
+  priority: text('priority', { enum: ['P1', 'P2', 'P3', 'P4'] }).notNull().default('P3'),
+  requesterId: integer('requester_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  assignedAgentId: integer('assigned_agent_id').references(() => users.id, { onDelete: 'set null' }),
+  approvedById: integer('approved_by_id').references(() => users.id, { onDelete: 'set null' }),
+  approvedAt: timestamp('approved_at'),
+  fulfilledAt: timestamp('fulfilled_at'),
+  rejectionReason: text('rejection_reason'),
+  createdAt: timestamp('created_at').notNull().default(sql`now()`),
+  updatedAt: timestamp('updated_at').notNull().default(sql`now()`)
+});
+
+// Service Request Comments
+export const serviceRequestComments = pgTable('service_request_comments', {
+  id: serial('id').primaryKey(),
+  serviceRequestId: integer('service_request_id').notNull().references(() => serviceRequests.id, { onDelete: 'cascade' }),
+  body: text('body').notNull(),
+  authorId: integer('author_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at').notNull().default(sql`now()`)
+});
+
+// Asset ↔ Ticket/ServiceRequest links
+export const assetLinks = pgTable('asset_links', {
+  id: serial('id').primaryKey(),
+  assetId: integer('asset_id').notNull().references(() => assets.id, { onDelete: 'cascade' }),
+  ticketId: integer('ticket_id').references(() => tickets.id, { onDelete: 'cascade' }),
+  serviceRequestId: integer('service_request_id').references(() => serviceRequests.id, { onDelete: 'cascade' }),
+  linkedByUserId: integer('linked_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  linkedAt: timestamp('linked_at').notNull().default(sql`now()`)
+});
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -366,3 +438,10 @@ export type NewKnowledgeBaseArticle = typeof knowledgeBaseArticles.$inferInsert;
 export type KbTag = typeof kbTags.$inferSelect;
 export type NewKbTag = typeof kbTags.$inferInsert;
 export type ArticleTag = typeof articleTags.$inferSelect;
+export type Asset = typeof assets.$inferSelect;
+export type NewAsset = typeof assets.$inferInsert;
+export type AssetHistory = typeof assetHistory.$inferSelect;
+export type ServiceRequest = typeof serviceRequests.$inferSelect;
+export type NewServiceRequest = typeof serviceRequests.$inferInsert;
+export type ServiceRequestComment = typeof serviceRequestComments.$inferSelect;
+export type AssetLink = typeof assetLinks.$inferSelect;
