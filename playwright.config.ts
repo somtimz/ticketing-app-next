@@ -34,6 +34,7 @@ export default defineConfig({
       testMatch: [
         /e2e\/tickets\/employee\.spec\.ts/,
         /e2e\/kb\/browse\.spec\.ts/,
+        /e2e\/service-requests\/service-requests\.spec\.ts/,
       ],
       dependencies: ['setup'],
       use: {
@@ -48,6 +49,7 @@ export default defineConfig({
       testMatch: [
         /e2e\/tickets\/agent\.spec\.ts/,
         /e2e\/kb\/manage\.spec\.ts/,
+        /e2e\/assets\/assets\.spec\.ts/,
       ],
       dependencies: ['setup'],
       use: {
