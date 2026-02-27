@@ -14,6 +14,8 @@ import {
   TagIcon,
   ClockIcon,
   UsersIcon,
+  ComputerDesktopIcon,
+  InboxStackIcon,
 } from '@heroicons/react/24/outline';
 
 interface NavItem {
@@ -26,6 +28,8 @@ const baseNavItems: NavItem[] = [
   { href: '/dashboard/issue-logging', label: 'Issue Logging', icon: ClipboardDocumentListIcon },
   { href: '/dashboard/my-tickets', label: 'My Tickets', icon: TicketIcon },
   { href: '/dashboard/all-tickets', label: 'All Tickets', icon: QueueListIcon },
+  { href: '/dashboard/assets', label: 'Assets', icon: ComputerDesktopIcon },
+  { href: '/dashboard/service-requests', label: 'Service Requests', icon: InboxStackIcon },
   { href: '/dashboard/kb', label: 'Knowledge Base', icon: BookOpenIcon },
 ];
 
