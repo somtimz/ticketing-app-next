@@ -13,6 +13,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Phone call logging for agents
 - File attachments (up to 25MB)
 - Email notifications (Resend/SendGrid)
+- Asset inventory (hardware + software) with assignment history
+- Service requests (`REQ-XXXX`) with distinct workflow from incidents (`INC-XXXX`)
+- User profile page aggregating assets, incidents, and service requests
 
 ## Tech Stack
 
@@ -68,7 +71,9 @@ app/
 │   ├── calls/           # Phone call logging
 │   ├── agents/          # List assignable agents (Agent+)
 │   ├── categories/      # Category list
-│   ├── users/           # User management (Admin)
+│   ├── users/           # User management (Admin) + /[id]/summary profile endpoint
+│   ├── assets/          # Asset CRUD + /[id]/assign + /[id]/retire
+│   ├── service-requests/ # Service request CRUD + /[id]/status + /[id]/assign + /[id]/comments
 │   ├── kb/
 │   │   ├── articles/    # KB CRUD (list, create, get, edit, delete, feedback)
 │   │   └── search/      # Full-text KB search
@@ -77,6 +82,8 @@ app/
     ├── issue-logging/   # Ticket list, detail, new ticket
     ├── my-tickets/      # Employee's own tickets
     ├── all-tickets/     # All tickets (Agent+)
+    ├── assets/          # Asset inventory + detail + new
+    ├── service-requests/ # Service request list, detail, new
     ├── kb/              # Knowledge base (browse, view, new, edit)
     └── agents/          # Agent management (Admin)
 ```
@@ -91,7 +98,9 @@ docs/
 ├── design/
 │   └── mvp-design.md                    # MVP feature design
 ├── plans/
-│   └── mvp-implementation.md            # Active implementation plan
+│   ├── mvp-implementation.md            # Active implementation plan
+│   ├── 2026-02-20-kb-inline-ticket-suggestions.md  # KB suggestions + isAgentOnly implementation plan
+│   └── 2026-02-27-assets-service-requests-design.md  # Assets + service requests design
 ├── guides/
 │   └── manual-testing.md               # Manual testing scenarios
 └── archive/                             # Superseded early drafts (Jan 2025)
@@ -105,8 +114,14 @@ docs/
 - **SLA defaults:** P1=15min/4hr, P2=1hr/24hr, P3=4hr/3d, P4=24hr/7d
 - **Role hierarchy:** Employee < Agent < TeamLead < Admin (use `hasRole()` for inheritance)
 - **API errors:** Use `requireAuth()` / `requireRole()` from `lib/api-error.ts`
-- **Status flow:** Open → In Progress → Resolved → Closed (Closed is terminal)
+- **Incident status flow:** Open → In Progress → Resolved → Closed (Closed is terminal)
+- **Service request status flow:** Submitted → Approved → In Progress → Fulfilled (or Rejected; terminal)
 - **Ticket numbers:** INC-0001 format, sequential
+- **Service request numbers:** REQ-0001 format, sequential
+- **Asset tags:** AST-0001 format, sequential
+- **Asset types:** Hardware | Software
+- **Asset statuses:** Active | In Repair | Retired
+- **Service request categories:** New Equipment | Software Access | Account Setup | Hardware Repair | Other
 
 ## Test Accounts (after `npm run db:seed`)
 
