@@ -103,6 +103,11 @@ export async function PATCH(
     const body = await req.json();
     const data = updateAssetSchema.parse(body);
 
+    // Non-agents cannot change assignedUserId via PATCH — use /assign endpoint instead
+    if (!isAgent && data.assignedUserId !== undefined) {
+      throw new APIError(403, 'forbidden', 'Use the /assign endpoint to reassign assets');
+    }
+
     const [updated] = await db
       .update(assets)
       .set({

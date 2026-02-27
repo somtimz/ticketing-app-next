@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { assets, assetHistory } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, isNull, and } from 'drizzle-orm';
 import { requireRole, APIError, handleAPIError } from '@/lib/api-error';
 import { assignAssetSchema } from '@/lib/validators';
 
@@ -27,12 +27,12 @@ export async function POST(
     const data = assignAssetSchema.parse(body);
     const agentId = parseInt(session!.user.id, 10);
 
-    // Close previous history entry if any
+    // Close previous open history entry if any
     if (existing.assignedUserId) {
       await db
         .update(assetHistory)
         .set({ returnedAt: new Date() })
-        .where(eq(assetHistory.assetId, assetId));
+        .where(and(eq(assetHistory.assetId, assetId), isNull(assetHistory.returnedAt)));
     }
 
     // Create new history entry
