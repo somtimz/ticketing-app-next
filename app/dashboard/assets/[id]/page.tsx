@@ -78,14 +78,22 @@ export default async function AssetDetailPage({ params }: { params: Promise<{ id
         </Link>
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 p-5 space-y-3">
-        <h2 className="text-sm font-semibold text-gray-900">Details</h2>
-        {details.filter(([, v]) => v).map(([label, value]) => (
-          <div key={label} className="flex justify-between text-sm">
-            <span className="text-gray-500">{label}</span>
-            <span className="text-gray-900 font-medium">{value}</span>
+      <div className="grid grid-cols-2 gap-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-5 space-y-3">
+          <h2 className="text-sm font-semibold text-gray-900">Details</h2>
+          {details.filter(([, v]) => v).map(([label, value]) => (
+            <div key={label} className="flex justify-between text-sm">
+              <span className="text-gray-500">{label}</span>
+              <span className="text-gray-900 font-medium">{value}</span>
+            </div>
+          ))}
+        </div>
+        {isAgent && a.status !== 'Retired' && (
+          <div className="bg-white rounded-lg border border-gray-200 p-5 space-y-3">
+            <h2 className="text-sm font-semibold text-gray-900">Actions</h2>
+            <p className="text-xs text-gray-500">Use the API or a future actions panel to reassign or retire this asset.</p>
           </div>
-        ))}
+        )}
       </div>
 
       {history.length > 0 && (
