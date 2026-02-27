@@ -31,6 +31,6 @@ test.describe('agent actions', () => {
 
     await page.goto(`/dashboard/service-requests/${serviceRequest.id}`);
     await page.getByRole('button', { name: 'Approve' }).click();
-    await expect(page.getByText('Approved')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Approved').first()).toBeVisible({ timeout: 10000 });
   });
 });
