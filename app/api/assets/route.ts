@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { assets, users } from '@/lib/db/schema';
 import { eq, desc, sql } from 'drizzle-orm';
-import { requireAuth, handleAPIError } from '@/lib/api-error';
+import { requireAuth, requireRole, handleAPIError } from '@/lib/api-error';
 import { hasRole } from '@/lib/rbac';
 import { createAssetSchema } from '@/lib/validators';
 
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
-    requireAuth(session);
+    requireRole(session, 'Agent');
 
     const body = await req.json();
     const data = createAssetSchema.parse(body);

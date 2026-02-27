@@ -3,7 +3,7 @@ import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import { users, assets, tickets, serviceRequests } from '@/lib/db/schema';
-import { eq, and, ne } from 'drizzle-orm';
+import { eq, and, ne, notInArray } from 'drizzle-orm';
 import { hasRole } from '@/lib/rbac';
 import { format } from 'date-fns';
 
@@ -48,7 +48,7 @@ export default async function UserProfilePage({ params }: { params: Promise<{ id
     db.select({ id: tickets.id, ticketNumber: tickets.ticketNumber, title: tickets.title, status: tickets.status, priority: tickets.priority, createdAt: tickets.createdAt })
       .from(tickets).where(and(eq(tickets.createdBy, targetId), ne(tickets.status, 'Closed'))),
     db.select({ id: serviceRequests.id, requestNumber: serviceRequests.requestNumber, title: serviceRequests.title, status: serviceRequests.status, priority: serviceRequests.priority, createdAt: serviceRequests.createdAt })
-      .from(serviceRequests).where(and(eq(serviceRequests.requesterId, targetId), ne(serviceRequests.status, 'Fulfilled')))
+      .from(serviceRequests).where(and(eq(serviceRequests.requesterId, targetId), notInArray(serviceRequests.status, ['Fulfilled', 'Rejected'])))
   ]);
 
   return (

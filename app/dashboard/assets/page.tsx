@@ -46,13 +46,15 @@ export default async function AssetsPage() {
             {isAgent ? 'All registered assets' : 'Your assigned assets'}
           </p>
         </div>
-        <Link
-          href="/dashboard/assets/new"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-md text-sm font-medium hover:bg-violet-700"
-        >
-          <PlusIcon className="h-4 w-4" />
-          Register Asset
-        </Link>
+        {isAgent && (
+          <Link
+            href="/dashboard/assets/new"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-md text-sm font-medium hover:bg-violet-700"
+          >
+            <PlusIcon className="h-4 w-4" />
+            Register Asset
+          </Link>
+        )}
       </div>
 
       {rows.length === 0 ? (

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { assets, tickets, serviceRequests } from '@/lib/db/schema';
-import { eq, and, ne } from 'drizzle-orm';
+import { eq, and, ne, notInArray } from 'drizzle-orm';
 import { requireAuth, APIError, handleAPIError } from '@/lib/api-error';
 import { hasRole } from '@/lib/rbac';
 
@@ -36,7 +36,7 @@ export async function GET(
       db
         .select({ id: serviceRequests.id, requestNumber: serviceRequests.requestNumber, title: serviceRequests.title, status: serviceRequests.status, priority: serviceRequests.priority, createdAt: serviceRequests.createdAt })
         .from(serviceRequests)
-        .where(and(eq(serviceRequests.requesterId, targetId), ne(serviceRequests.status, 'Fulfilled')))
+        .where(and(eq(serviceRequests.requesterId, targetId), notInArray(serviceRequests.status, ['Fulfilled', 'Rejected'])))
     ]);
 
     return NextResponse.json({ assets: userAssets, openTickets, openRequests });
