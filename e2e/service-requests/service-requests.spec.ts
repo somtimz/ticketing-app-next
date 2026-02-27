@@ -9,7 +9,7 @@ test('employee can submit a service request', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/dashboard\/service-requests\/\d+/);
   await expect(page.getByText('Need new keyboard E2E')).toBeVisible();
-  await expect(page.getByText('Submitted')).toBeVisible();
+  await expect(page.getByText('Submitted').first()).toBeVisible();
 });
 
 test('service request list shows submitted request', async ({ page }) => {
