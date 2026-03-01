@@ -7,7 +7,7 @@ test('employee can submit a service request', async ({ page }) => {
   await page.getByLabel('Description *').fill('My keyboard is broken and I need a replacement.');
   await page.getByRole('button', { name: 'Submit Request' }).click();
 
-  await expect(page).toHaveURL(/\/dashboard\/service-requests\/\d+/);
+  await expect(page).toHaveURL(/\/dashboard\/service-requests\/\d+/, { timeout: 20000 });
   await expect(page.getByText('Need new keyboard E2E')).toBeVisible();
   await expect(page.getByText('Submitted').first()).toBeVisible();
 });

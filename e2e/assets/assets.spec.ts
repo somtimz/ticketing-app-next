@@ -8,8 +8,8 @@ test('can register an asset and view it in the list', async ({ page }) => {
   await page.getByLabel('Model').fill('XPS 15');
   await page.getByRole('button', { name: 'Register Asset' }).click();
 
-  // Should redirect to asset detail
-  await expect(page).toHaveURL(/\/dashboard\/assets\/\d+/);
+  // Should redirect to asset detail (API route may need first-compile time)
+  await expect(page).toHaveURL(/\/dashboard\/assets\/\d+/, { timeout: 20000 });
   await expect(page.getByText('Test Laptop E2E')).toBeVisible();
   await expect(page.getByText('Active')).toBeVisible();
 });

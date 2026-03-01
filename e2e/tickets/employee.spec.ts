@@ -32,11 +32,13 @@ test.describe('Employee – ticket flows', () => {
     await page.goto('/dashboard/my-tickets');
     // Click the first ticket link — exclude the "/new" create-ticket link
     const firstTicket = page.locator('a[href*="/dashboard/issue-logging/"]:not([href$="new"])').first();
-    await expect(firstTicket).toBeVisible();
+    await expect(firstTicket).toBeVisible({ timeout: 15000 });
     await firstTicket.click();
 
+    // Wait for navigation to the detail page (route may need first-compile time)
+    await page.waitForURL(/\/dashboard\/issue-logging\/\d+/, { timeout: 20000 });
     // Detail page should show a ticket number and the "Ticket Information" section
-    await expect(page.locator('main h1')).toContainText('INC-', { timeout: 15000 });
+    await expect(page.locator('main h1')).toContainText('INC-', { timeout: 30000 });
     await expect(page.locator('h2:has-text("Ticket Information")')).toBeVisible({ timeout: 15000 });
   });
 });
