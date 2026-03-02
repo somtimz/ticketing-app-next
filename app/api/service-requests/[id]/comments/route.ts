@@ -6,6 +6,7 @@ import { eq, asc } from 'drizzle-orm';
 import { requireAuth, APIError, handleAPIError } from '@/lib/api-error';
 import { hasRole } from '@/lib/rbac';
 import { addServiceRequestCommentSchema } from '@/lib/validators';
+import { sendServiceRequestCommentEmail } from '@/lib/email';
 
 // GET /api/service-requests/[id]/comments
 export async function GET(
@@ -57,7 +58,13 @@ export async function POST(
     const srId = parseInt(id, 10);
     if (isNaN(srId)) throw new APIError(400, 'bad_request', 'Invalid ID');
 
-    const [sr] = await db.select({ requesterId: serviceRequests.requesterId }).from(serviceRequests).where(eq(serviceRequests.id, srId)).limit(1);
+    const [sr] = await db
+      .select({
+        requesterId: serviceRequests.requesterId,
+        requestNumber: serviceRequests.requestNumber,
+        title: serviceRequests.title
+      })
+      .from(serviceRequests).where(eq(serviceRequests.id, srId)).limit(1);
     if (!sr) throw new APIError(404, 'not_found', 'Service request not found');
 
     const userId = parseInt(session!.user.id, 10);
@@ -74,6 +81,30 @@ export async function POST(
       .returning();
 
     await db.update(serviceRequests).set({ updatedAt: new Date() }).where(eq(serviceRequests.id, srId));
+
+    // Fire-and-forget: notify the other party
+    const isAgent = hasRole(session, 'Agent');
+    const commenterName = (session as any).user?.fullName ?? 'Support Team';
+    if (isAgent) {
+      // Agent commented → notify requester
+      const [requester] = await db.select({ email: users.email })
+        .from(users).where(eq(users.id, sr.requesterId));
+      if (requester?.email) {
+        void sendServiceRequestCommentEmail(requester.email, sr.requestNumber, sr.title, commenterName, data.body);
+      }
+    } else {
+      // Requester commented → notify assigned agent if exists, otherwise skip
+      const [fullSr] = await db
+        .select({ assignedToId: serviceRequests.assignedToId })
+        .from(serviceRequests).where(eq(serviceRequests.id, srId)).limit(1);
+      if (fullSr?.assignedToId) {
+        const [agent] = await db.select({ email: users.email, fullName: users.fullName })
+          .from(users).where(eq(users.id, fullSr.assignedToId));
+        if (agent?.email) {
+          void sendServiceRequestCommentEmail(agent.email, sr.requestNumber, sr.title, commenterName, data.body);
+        }
+      }
+    }
 
     return NextResponse.json({ comment }, { status: 201 });
   } catch (error) {

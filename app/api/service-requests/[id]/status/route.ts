@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { serviceRequests } from '@/lib/db/schema';
+import { serviceRequests, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { requireAuth, APIError, handleAPIError } from '@/lib/api-error';
 import { hasRole } from '@/lib/rbac';
 import { serviceRequestStatusSchema } from '@/lib/validators';
+import { sendServiceRequestStatusEmail } from '@/lib/email';
 
 // Valid transitions map
 const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -67,6 +68,21 @@ export async function POST(
       })
       .where(eq(serviceRequests.id, srId))
       .returning();
+
+    // Fire-and-forget: notify requester of status change
+    const [requester] = await db.select({ email: users.email })
+      .from(users).where(eq(users.id, sr.requesterId));
+    const [agent] = await db.select({ fullName: users.fullName })
+      .from(users).where(eq(users.id, agentId));
+    if (requester?.email) {
+      void sendServiceRequestStatusEmail(
+        requester.email,
+        updated.requestNumber,
+        updated.title,
+        data.status,
+        agent?.fullName ?? undefined
+      );
+    }
 
     return NextResponse.json({ serviceRequest: updated });
   } catch (error) {
