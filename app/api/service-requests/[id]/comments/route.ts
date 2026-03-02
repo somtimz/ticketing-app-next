@@ -95,11 +95,11 @@ export async function POST(
     } else {
       // Requester commented → notify assigned agent if exists, otherwise skip
       const [fullSr] = await db
-        .select({ assignedToId: serviceRequests.assignedToId })
+        .select({ assignedAgentId: serviceRequests.assignedAgentId })
         .from(serviceRequests).where(eq(serviceRequests.id, srId)).limit(1);
-      if (fullSr?.assignedToId) {
+      if (fullSr?.assignedAgentId) {
         const [agent] = await db.select({ email: users.email, fullName: users.fullName })
-          .from(users).where(eq(users.id, fullSr.assignedToId));
+          .from(users).where(eq(users.id, fullSr.assignedAgentId));
         if (agent?.email) {
           void sendServiceRequestCommentEmail(agent.email, sr.requestNumber, sr.title, commenterName, data.body);
         }
