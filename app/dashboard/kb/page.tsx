@@ -197,7 +197,17 @@ export default function KBPage(): JSX.Element {
           <div className="p-8 text-center text-sm text-gray-500">Loading...</div>
         ) : articles.length === 0 ? (
           <div className="p-8 text-center text-sm text-gray-500">
-            {search ? 'No articles match your search.' : 'No articles yet.'}
+            {search ? (
+              <div className="space-y-2">
+                <p>No articles match your search.</p>
+                <p>
+                  Still need help?{' '}
+                  <Link href="/dashboard/issue-logging/new" className="text-primary-600 underline hover:text-primary-700">
+                    Create a support ticket →
+                  </Link>
+                </p>
+              </div>
+            ) : 'No articles yet.'}
           </div>
         ) : (
           articles.map(article => (

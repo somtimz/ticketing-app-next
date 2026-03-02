@@ -499,6 +499,184 @@ export async function sendTicketCommentEmail(
 }
 
 /**
+ * Email sent when a service request is created
+ */
+export async function sendServiceRequestCreatedEmail(
+  to: string,
+  requestNumber: string,
+  title: string,
+  category: string
+): Promise<boolean> {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+          .request-number { font-size: 24px; font-weight: bold; margin: 0; }
+          .button { display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 20px; }
+          .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 12px; }
+          .info-row { display: flex; padding: 12px 0; border-bottom: 1px solid #e5e7eb; }
+          .info-label { font-weight: bold; width: 140px; color: #374151; }
+          .info-value { color: #6b7280; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <p style="margin: 0; opacity: 0.9; font-size: 14px;">Service Request Submitted</p>
+            <p class="request-number">${requestNumber}</p>
+          </div>
+          <div class="content">
+            <h2 style="margin-top: 0;">Your service request has been submitted</h2>
+            <p>Your request has been received and is pending review. An agent will process it shortly.</p>
+
+            <div style="background: white; border-radius: 8px; padding: 20px; margin: 20px 0;">
+              <div class="info-row">
+                <span class="info-label">Subject:</span>
+                <span class="info-value">${title}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Category:</span>
+                <span class="info-value">${category}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Status:</span>
+                <span class="info-value">Submitted</span>
+              </div>
+            </div>
+
+            <div class="footer">
+              <p>This is an automated message from IT Help Desk. Please do not reply to this email.</p>
+            </div>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  return sendEmail(to, `Service Request ${requestNumber} Submitted - ${title}`, html);
+}
+
+/**
+ * Email sent when a service request status changes
+ */
+export async function sendServiceRequestStatusEmail(
+  to: string,
+  requestNumber: string,
+  title: string,
+  newStatus: string,
+  agentName?: string
+): Promise<boolean> {
+  const statusColor = getSRStatusColor(newStatus);
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+          .request-number { font-size: 24px; font-weight: bold; margin: 0; }
+          .status-badge { display: inline-block; padding: 4px 12px; border-radius: 4px; font-size: 14px; font-weight: bold; background: ${statusColor}22; color: ${statusColor}; }
+          .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 12px; }
+          .info-row { display: flex; padding: 12px 0; border-bottom: 1px solid #e5e7eb; }
+          .info-label { font-weight: bold; width: 140px; color: #374151; }
+          .info-value { color: #6b7280; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <p style="margin: 0; opacity: 0.9; font-size: 14px;">Service Request Update</p>
+            <p class="request-number">${requestNumber}</p>
+          </div>
+          <div class="content">
+            <h2 style="margin-top: 0;">Your service request status has changed</h2>
+
+            <div style="background: white; border-radius: 8px; padding: 20px; margin: 20px 0;">
+              <div class="info-row">
+                <span class="info-label">Subject:</span>
+                <span class="info-value">${title}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">New Status:</span>
+                <span class="info-value"><span class="status-badge">${newStatus}</span></span>
+              </div>
+              ${agentName ? `
+              <div class="info-row">
+                <span class="info-label">Updated by:</span>
+                <span class="info-value">${agentName}</span>
+              </div>` : ''}
+            </div>
+
+            <div class="footer">
+              <p>This is an automated message from IT Help Desk. Please do not reply to this email.</p>
+            </div>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  return sendEmail(to, `Service Request ${requestNumber} is now ${newStatus}`, html);
+}
+
+/**
+ * Email sent when a comment is added to a service request
+ */
+export async function sendServiceRequestCommentEmail(
+  to: string,
+  requestNumber: string,
+  title: string,
+  commenterName: string,
+  body: string
+): Promise<boolean> {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+          .request-number { font-size: 24px; font-weight: bold; margin: 0; }
+          .comment-box { background: white; border-left: 4px solid #667eea; padding: 16px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+          .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <p style="margin: 0; opacity: 0.9; font-size: 14px;">New Comment on Service Request</p>
+            <p class="request-number">${requestNumber}</p>
+          </div>
+          <div class="content">
+            <h2 style="margin-top: 0;">${commenterName} left a comment</h2>
+            <p><strong>Request:</strong> ${title}</p>
+
+            <div class="comment-box">
+              <p style="margin: 0; white-space: pre-wrap;">${body}</p>
+            </div>
+
+            <div class="footer">
+              <p>This is an automated message from IT Help Desk. Please do not reply to this email.</p>
+            </div>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  return sendEmail(to, `New comment on ${requestNumber}: ${title}`, html);
+}
+
+/**
  * Helper function to get SLA text for priority
  */
 function getSlaText(priority: string): string {
@@ -522,6 +700,20 @@ function getStatusColor(status: string): string {
     Pending: '#6b7280',
     Resolved: '#10b981',
     Closed: '#6b7280'
+  };
+  return colors[status] || '#667eea';
+}
+
+/**
+ * Helper function to get status color for service requests
+ */
+function getSRStatusColor(status: string): string {
+  const colors: Record<string, string> = {
+    Submitted: '#3b82f6',
+    Approved: '#8b5cf6',
+    'In Progress': '#f59e0b',
+    Fulfilled: '#10b981',
+    Rejected: '#ef4444'
   };
   return colors[status] || '#667eea';
 }

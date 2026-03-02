@@ -6,6 +6,7 @@ import { eq, desc, sql } from 'drizzle-orm';
 import { requireAuth, handleAPIError } from '@/lib/api-error';
 import { hasRole } from '@/lib/rbac';
 import { createServiceRequestSchema } from '@/lib/validators';
+import { sendServiceRequestCreatedEmail } from '@/lib/email';
 
 // GET /api/service-requests
 export async function GET(req: NextRequest) {
@@ -75,6 +76,13 @@ export async function POST(req: NextRequest) {
         status: 'Submitted'
       })
       .returning();
+
+    // Fire-and-forget email to requester
+    const [requester] = await db.select({ email: users.email })
+      .from(users).where(eq(users.id, parseInt(session!.user.id, 10)));
+    if (requester?.email) {
+      void sendServiceRequestCreatedEmail(requester.email, sr.requestNumber, sr.title, sr.category);
+    }
 
     return NextResponse.json({ serviceRequest: sr }, { status: 201 });
   } catch (error) {
