@@ -1,6 +1,5 @@
 import NextAuth, { type DefaultSession } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
-import { DrizzleAdapter } from '@auth/drizzle-adapter';
 import { db } from './db';
 import { users } from './db/schema';
 import { eq } from 'drizzle-orm';
@@ -28,9 +27,8 @@ declare module 'next-auth/jwt' {
   }
 }
 
-// Auth configuration with database adapter (for API routes)
+// Auth configuration with JWT strategy (no database adapter — Credentials + JWT doesn't need one)
 const config = {
-  adapter: DrizzleAdapter(db) as any,
   providers: [
     Credentials({
       credentials: {

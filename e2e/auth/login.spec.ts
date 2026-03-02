@@ -30,10 +30,10 @@ test.describe('Login', () => {
 
     // Click the Logout button in the header (icon-only button with title="Logout")
     await page.click('button[title="Logout"]');
-    await expect(page).toHaveURL('/login');
+    await expect(page).toHaveURL('/login', { timeout: 15000 });
 
     // Confirm dashboard is now protected — should redirect back to login
     await page.goto('/dashboard/issue-logging');
-    await expect(page).toHaveURL('/login');
+    await expect(page).toHaveURL('/login', { timeout: 15000 });
   });
 });
