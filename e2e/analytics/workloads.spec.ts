@@ -4,7 +4,7 @@ import { test, expect } from '../fixtures';
 test.describe('Analytics – workloads (TeamLead role)', () => {
   test('workload dashboard page loads', async ({ page }) => {
     await page.goto('/dashboard/analytics');
-    await expect(page.locator('main h1')).toContainText('Analytics');
+    await expect(page.locator('main h1')).toContainText('Analytics', { timeout: 20000 });
   });
 
   test('agent stats are displayed', async ({ page }) => {

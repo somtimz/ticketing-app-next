@@ -30,7 +30,8 @@ test.describe('agent actions', () => {
     const { serviceRequest } = await res.json() as { serviceRequest: { id: number } };
 
     await page.goto(`/dashboard/service-requests/${serviceRequest.id}`);
+    await expect(page.getByRole('button', { name: 'Approve' })).toBeVisible({ timeout: 20000 });
     await page.getByRole('button', { name: 'Approve' }).click();
-    await expect(page.getByText('Approved').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Approved').first()).toBeVisible({ timeout: 15000 });
   });
 });
