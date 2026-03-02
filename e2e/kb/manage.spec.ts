@@ -9,7 +9,7 @@ test.describe('Knowledge Base – manage (Agent role)', () => {
     await page.fill('input[placeholder="Article title"]', 'E2E Draft Article');
     await page.fill('textarea[placeholder="Write your article content in Markdown..."]', '## Summary\n\nThis is an E2E test article.');
     // Leave "Publish immediately" unchecked — creates a draft
-    await page.click('button[type="submit"]');
+    await page.getByRole('button', { name: 'Create Article' }).click();
 
     // Redirects to the new article's detail page
     await page.waitForURL(/\/dashboard\/kb\/\d+/);
@@ -22,7 +22,7 @@ test.describe('Knowledge Base – manage (Agent role)', () => {
     await page.fill('input[placeholder="Article title"]', 'E2E Published Article');
     await page.fill('textarea[placeholder="Write your article content in Markdown..."]', '## Fix\n\nRestart the service to resolve this issue.');
     await page.check('#isPublished'); // "Publish immediately"
-    await page.click('button[type="submit"]');
+    await page.getByRole('button', { name: 'Create Article' }).click();
 
     await page.waitForURL(/\/dashboard\/kb\/\d+/);
     // Published articles should NOT show a "Draft" badge
@@ -34,7 +34,7 @@ test.describe('Knowledge Base – manage (Agent role)', () => {
     await page.goto('/dashboard/kb/new');
     await page.fill('input[placeholder="Article title"]', 'E2E Article To Edit');
     await page.fill('textarea[placeholder="Write your article content in Markdown..."]', '## Original\n\nOriginal content.');
-    await page.click('button[type="submit"]');
+    await page.getByRole('button', { name: 'Create Article' }).click();
     await page.waitForURL(/\/dashboard\/kb\/\d+/);
 
     // Get the article ID from the current URL
