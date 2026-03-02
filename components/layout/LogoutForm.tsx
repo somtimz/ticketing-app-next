@@ -1,14 +1,9 @@
-import { signOut } from '@/lib/auth';
 import { ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
+import { logout } from '@/lib/actions/auth';
 
 export default function LogoutForm(): JSX.Element {
   return (
-    <form
-      action={async () => {
-        'use server';
-        await signOut({ redirectTo: '/login' });
-      }}
-    >
+    <form action={logout}>
       <button
         type="submit"
         title="Logout"
