@@ -166,6 +166,9 @@ export const tickets: any = pgTable('tickets', {
   guestUserId: integer('guest_user_id').references(() => guestUsers.id, {
     onDelete: 'set null'
   }),
+  customerId: integer('customer_id').references(() => customers.id, {
+    onDelete: 'set null'
+  }),
   impact: text('impact', { enum: ['Low', 'Medium', 'High'] }).notNull(),
   urgency: text('urgency', { enum: ['Low', 'Medium', 'High'] }).notNull(),
   resolution: text('resolution'),
@@ -379,6 +382,7 @@ export const serviceRequests = pgTable('service_requests', {
   priority: text('priority', { enum: ['P1', 'P2', 'P3', 'P4'] }).notNull().default('P3'),
   requesterId: integer('requester_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
   assignedAgentId: integer('assigned_agent_id').references(() => users.id, { onDelete: 'set null' }),
+  customerId: integer('customer_id').references(() => customers.id, { onDelete: 'set null' }),
   approvedById: integer('approved_by_id').references(() => users.id, { onDelete: 'set null' }),
   approvedAt: timestamp('approved_at'),
   fulfilledAt: timestamp('fulfilled_at'),
@@ -394,6 +398,19 @@ export const serviceRequestComments = pgTable('service_request_comments', {
   body: text('body').notNull(),
   authorId: integer('author_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
   createdAt: timestamp('created_at').notNull().default(sql`now()`)
+});
+
+// Customers table (external contacts linked to tickets and service requests)
+export const customers = pgTable('customers', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email'),
+  phone: text('phone'),
+  company: text('company'),
+  notes: text('notes'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().default(sql`now()`),
+  updatedAt: timestamp('updated_at').notNull().default(sql`now()`)
 });
 
 // Asset ↔ Ticket/ServiceRequest links
@@ -448,3 +465,5 @@ export type ServiceRequestComment = typeof serviceRequestComments.$inferSelect;
 export type NewServiceRequestComment = typeof serviceRequestComments.$inferInsert;
 export type AssetLink = typeof assetLinks.$inferSelect;
 export type NewAssetLink = typeof assetLinks.$inferInsert;
+export type Customer = typeof customers.$inferSelect;
+export type NewCustomer = typeof customers.$inferInsert;

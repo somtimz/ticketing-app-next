@@ -2,11 +2,12 @@ import { auth } from '@/lib/auth';
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { db } from '@/lib/db';
-import { serviceRequests, serviceRequestComments, users, assetLinks, assets } from '@/lib/db/schema';
+import { serviceRequests, serviceRequestComments, users, assetLinks, assets, customers } from '@/lib/db/schema';
 import { eq, asc } from 'drizzle-orm';
 import { hasRole } from '@/lib/rbac';
 import { format } from 'date-fns';
 import ServiceRequestActions from '@/components/service-requests/ServiceRequestActions';
+import CustomerSection from '@/components/service-requests/CustomerSection';
 
 const STATUS_COLORS: Record<string, string> = {
   Submitted: 'bg-blue-100 text-blue-700',
@@ -58,6 +59,16 @@ export default async function ServiceRequestDetailPage({ params }: { params: Pro
     .from(assetLinks)
     .innerJoin(assets, eq(assetLinks.assetId, assets.id))
     .where(eq(assetLinks.serviceRequestId, srId));
+
+  let linkedCustomer: { id: number; name: string; company: string | null } | null = null;
+  if (sr.customerId) {
+    const [c] = await db
+      .select({ id: customers.id, name: customers.name, company: customers.company })
+      .from(customers)
+      .where(eq(customers.id, sr.customerId))
+      .limit(1);
+    linkedCustomer = c ?? null;
+  }
 
   const sidebarDetails: [string, string | null | undefined][] = [
     ['Category', sr.category],
@@ -136,6 +147,7 @@ export default async function ServiceRequestDetailPage({ params }: { params: Pro
         </div>
 
         <div className="space-y-4">
+          <CustomerSection srId={srId} initialCustomer={linkedCustomer} isAgent={isAgent} />
           <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Details</h2>
             {sidebarDetails.filter(([, v]) => v).map(([label, value]) => (

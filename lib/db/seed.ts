@@ -2,7 +2,7 @@ import * as schema from './schema';
 import { db } from '../db';
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
-import type { NewCategory, NewUser, NewEmployee, NewTicket, NewCaller, NewSLAPolicy, NewDepartment, NewGuestUser } from './schema';
+import type { NewCategory, NewUser, NewEmployee, NewTicket, NewCaller, NewSLAPolicy, NewDepartment, NewGuestUser, NewServiceRequest } from './schema';
 import type { NewTicketStatusHistory } from './schema';
 import { calculatePriority, calculateSLADueDates } from '@/lib/sla';
 
@@ -1159,6 +1159,75 @@ After setup, download and store your **backup codes** in a safe place (e.g. a pa
   }
 
   console.log(`  ✓ ${kbArticles.length} KB articles created (${kbArticles.filter(a => a.isPublished).length} published, ${kbArticles.filter(a => !a.isPublished).length} draft)`);
+
+  // ========================================
+  // CUSTOMERS
+  // ========================================
+
+  console.log('Inserting customers...');
+
+  await db.insert(schema.customers).values([
+    {
+      name: 'Acme Corporation',
+      email: 'support@acme.example',
+      phone: '555-2001',
+      company: 'Acme Corp',
+      notes: 'Key enterprise client — handle with priority.',
+      isActive: true
+    },
+    {
+      name: 'GlobalTech Solutions',
+      email: 'helpdesk@globaltech.example',
+      phone: '555-2002',
+      company: 'GlobalTech Solutions',
+      notes: 'Multi-site deployment; coordinate with field team.',
+      isActive: true
+    },
+    {
+      name: 'Sunrise Media Group',
+      email: 'it@sunrisemedia.example',
+      phone: '555-2003',
+      company: 'Sunrise Media Group',
+      notes: null,
+      isActive: false
+    }
+  ]).onConflictDoNothing();
+
+  console.log('  ✓ 3 Customers created');
+
+  // Link customers to some tickets
+  const insertedCustomers = await db.select().from(schema.customers);
+  const acme = insertedCustomers.find(c => c.company === 'Acme Corp');
+  const globaltech = insertedCustomers.find(c => c.company === 'GlobalTech Solutions');
+  const freshTickets = await db.select().from(schema.tickets);
+  const tick1001 = freshTickets.find(t => t.ticketNumber === 'TICK-1001');
+  const tick1002 = freshTickets.find(t => t.ticketNumber === 'TICK-1002');
+
+  if (acme && tick1001) {
+    await db.update(schema.tickets).set({ customerId: acme.id }).where(eq(schema.tickets.id, tick1001.id));
+  }
+  if (globaltech && tick1002) {
+    await db.update(schema.tickets).set({ customerId: globaltech.id }).where(eq(schema.tickets.id, tick1002.id));
+  }
+
+  // Seed a sample service request and link a customer
+  const insertedUsersForSR = await db.select().from(schema.users);
+  const employee1 = insertedUsersForSR.find(u => u.email === 'employee1@company.com');
+  if (employee1) {
+    const [sr] = await db.insert(schema.serviceRequests).values({
+      requestNumber: 'REQ-0001',
+      title: 'New laptop for remote work',
+      description: 'I need a new laptop to support remote work. Current one is 5 years old and running slowly.',
+      category: 'New Equipment',
+      status: 'Submitted',
+      priority: 'P3',
+      requesterId: employee1.id,
+      customerId: acme?.id ?? null
+    }).onConflictDoNothing().returning();
+    if (sr) {
+      console.log('  ✓ 1 Service Request created (REQ-0001), linked to Acme Corp');
+    }
+  }
 
   // ========================================
   // SUMMARY

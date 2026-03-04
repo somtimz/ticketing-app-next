@@ -128,3 +128,17 @@ export const addServiceRequestCommentSchema = z.object({
   body: z.string().min(1).max(5000)
 });
 export type AddServiceRequestCommentInput = z.infer<typeof addServiceRequestCommentSchema>;
+
+// Customer schemas
+export const createCustomerSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(200),
+  email: z.string().email('Invalid email').max(200).optional().nullable(),
+  phone: z.string().max(50).optional().nullable(),
+  company: z.string().max(200).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable()
+});
+export const updateCustomerSchema = createCustomerSchema.extend({
+  isActive: z.boolean().optional()
+}).partial();
+export type CreateCustomerInput = z.infer<typeof createCustomerSchema>;
+export type UpdateCustomerInput = z.infer<typeof updateCustomerSchema>;

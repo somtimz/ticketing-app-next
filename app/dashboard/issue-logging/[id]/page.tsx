@@ -29,6 +29,12 @@ import type { TicketWithRelations, TicketStatus, TicketPriority } from '@/types'
 import { getSLAStatus } from '@/lib/sla';
 import KbSuggestions from '@/components/tickets/KbSuggestions';
 
+interface CustomerSummary {
+  id: number;
+  name: string;
+  company: string | null;
+}
+
 // ─── Type helpers ────────────────────────────────────────────────────────────
 
 interface Comment {
@@ -192,6 +198,14 @@ export default function TicketDetailPage(): JSX.Element {
   const [callOutcome, setCallOutcome] = useState<'resolved' | 'escalated' | 'follow_up'>('follow_up');
   const [isLoggingCall, setIsLoggingCall] = useState(false);
 
+  // Customer link
+  const [linkedCustomer, setLinkedCustomer] = useState<CustomerSummary | null>(null);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [customerResults, setCustomerResults] = useState<CustomerSummary[]>([]);
+  const [isSearchingCustomer, setIsSearchingCustomer] = useState(false);
+  const [isLinkingCustomer, setIsLinkingCustomer] = useState(false);
+  const [showCustomerSearch, setShowCustomerSearch] = useState(false);
+
   const userRole = (session?.user as any)?.role as string | undefined;
   const isAgent = userRole === 'Agent' || userRole === 'TeamLead' || userRole === 'Admin';
 
@@ -242,9 +256,28 @@ export default function TicketDetailPage(): JSX.Element {
     }
   }, [ticketId]);
 
+  const fetchLinkedCustomer = useCallback(async (cid: number | null | undefined) => {
+    if (!cid) { setLinkedCustomer(null); return; }
+    try {
+      const res = await fetch(`/api/customers/${cid}`);
+      if (!res.ok) { setLinkedCustomer(null); return; }
+      const data = await res.json() as { customer: CustomerSummary };
+      setLinkedCustomer(data.customer);
+    } catch {
+      setLinkedCustomer(null);
+    }
+  }, []);
+
   useEffect(() => {
     void Promise.all([fetchTicket(), fetchComments(), fetchAttachments(), fetchTimeline()]);
   }, [fetchTicket, fetchComments, fetchAttachments, fetchTimeline]);
+
+  // Fetch customer when ticket loads
+  useEffect(() => {
+    if (ticket) {
+      void fetchLinkedCustomer((ticket as any).customerId as number | null | undefined);
+    }
+  }, [ticket, fetchLinkedCustomer]);
 
   useEffect(() => {
     if (!isAgent) return;
@@ -358,6 +391,58 @@ export default function TicketDetailPage(): JSX.Element {
       }
     } finally {
       setIsLoggingCall(false);
+    }
+  };
+
+  const handleCustomerSearch = async (q: string) => {
+    setCustomerSearch(q);
+    if (!q.trim()) { setCustomerResults([]); return; }
+    setIsSearchingCustomer(true);
+    try {
+      const res = await fetch(`/api/customers?q=${encodeURIComponent(q)}`);
+      if (res.ok) {
+        const data = await res.json() as { customers: CustomerSummary[] };
+        setCustomerResults(data.customers);
+      }
+    } catch {
+      // non-fatal
+    } finally {
+      setIsSearchingCustomer(false);
+    }
+  };
+
+  const handleLinkCustomer = async (customer: CustomerSummary) => {
+    setIsLinkingCustomer(true);
+    try {
+      const res = await fetch(`/api/tickets/${ticketId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId: customer.id })
+      });
+      if (res.ok) {
+        setLinkedCustomer(customer);
+        setShowCustomerSearch(false);
+        setCustomerSearch('');
+        setCustomerResults([]);
+      }
+    } catch {
+      // non-fatal
+    } finally {
+      setIsLinkingCustomer(false);
+    }
+  };
+
+  const handleUnlinkCustomer = async () => {
+    if (!confirm('Remove customer link from this ticket?')) return;
+    try {
+      const res = await fetch(`/api/tickets/${ticketId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId: null })
+      });
+      if (res.ok) setLinkedCustomer(null);
+    } catch {
+      // non-fatal
     }
   };
 
@@ -533,6 +618,79 @@ export default function TicketDetailPage(): JSX.Element {
             </div>
           </dl>
         </div>
+      </div>
+
+      {/* Customer */}
+      <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-medium text-gray-900">Customer</h2>
+          {isAgent && !linkedCustomer && (
+            <button
+              onClick={() => setShowCustomerSearch(v => !v)}
+              className="text-sm text-violet-600 hover:underline"
+            >
+              {showCustomerSearch ? 'Cancel' : '+ Link Customer'}
+            </button>
+          )}
+        </div>
+
+        {linkedCustomer ? (
+          <div className="flex items-start justify-between">
+            <div>
+              <Link
+                href={`/dashboard/admin/customers/${linkedCustomer.id}`}
+                className="text-sm font-medium text-violet-600 hover:underline"
+              >
+                {linkedCustomer.name}
+              </Link>
+              {linkedCustomer.company && (
+                <p className="text-xs text-gray-500">{linkedCustomer.company}</p>
+              )}
+            </div>
+            {isAgent && (
+              <button
+                onClick={() => void handleUnlinkCustomer()}
+                className="text-xs text-red-600 hover:underline"
+              >
+                Unlink
+              </button>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400 italic">No customer linked.</p>
+        )}
+
+        {isAgent && showCustomerSearch && (
+          <div className="mt-3">
+            <input
+              type="text"
+              value={customerSearch}
+              onChange={e => void handleCustomerSearch(e.target.value)}
+              placeholder="Search customers by name or company..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+            />
+            {isSearchingCustomer && <p className="text-xs text-gray-400 mt-1">Searching...</p>}
+            {customerResults.length > 0 && (
+              <ul className="mt-2 border border-gray-200 rounded-md divide-y divide-gray-100 max-h-40 overflow-auto">
+                {customerResults.map(c => (
+                  <li key={c.id}>
+                    <button
+                      onClick={() => void handleLinkCustomer(c)}
+                      disabled={isLinkingCustomer}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-violet-50 disabled:opacity-50"
+                    >
+                      <span className="font-medium text-gray-900">{c.name}</span>
+                      {c.company && <span className="text-gray-500 ml-1">— {c.company}</span>}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {!isSearchingCustomer && customerSearch && customerResults.length === 0 && (
+              <p className="text-xs text-gray-400 mt-1">No customers found.</p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Comments */}
