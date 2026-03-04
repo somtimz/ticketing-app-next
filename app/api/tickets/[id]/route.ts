@@ -229,6 +229,22 @@ export async function PATCH(
 
     const body = await req.json();
 
+    // Handle customer link/unlink separately
+    if ('customerId' in body) {
+      const customerIdValue = body.customerId as number | null;
+      if (customerIdValue !== null && (typeof customerIdValue !== 'number' || !Number.isInteger(customerIdValue))) {
+        throw new APIError(400, 'invalid_customer_id', 'customerId must be an integer or null');
+      }
+      const [currentForCustomer] = await db.select({ id: tickets.id }).from(tickets).where(eq(tickets.id, ticketId)).limit(1);
+      if (!currentForCustomer) throw new APIError(404, 'ticket_not_found', 'Ticket not found');
+      const [updated] = await db
+        .update(tickets)
+        .set({ customerId: customerIdValue, updatedAt: new Date() })
+        .where(eq(tickets.id, ticketId))
+        .returning({ id: tickets.id, customerId: tickets.customerId });
+      return NextResponse.json({ success: true, ticketId, customerId: updated.customerId });
+    }
+
     // Validate request body
     const validatedData: UpdateTicketStatusInput = updateTicketStatusSchema.parse(body);
 

@@ -127,6 +127,21 @@ export async function PATCH(
     }
 
     const body = await req.json();
+
+    // Handle customer link/unlink separately
+    if ('customerId' in body) {
+      const customerIdValue = body.customerId as number | null;
+      if (customerIdValue !== null && (typeof customerIdValue !== 'number' || !Number.isInteger(customerIdValue))) {
+        throw new APIError(400, 'bad_request', 'customerId must be an integer or null');
+      }
+      const [updated] = await db
+        .update(serviceRequests)
+        .set({ customerId: customerIdValue, updatedAt: new Date() })
+        .where(eq(serviceRequests.id, srId))
+        .returning({ id: serviceRequests.id, customerId: serviceRequests.customerId });
+      return NextResponse.json({ success: true, srId, customerId: updated.customerId });
+    }
+
     const data = updateServiceRequestSchema.parse(body);
 
     const [updated] = await db

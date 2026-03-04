@@ -17,6 +17,7 @@ import {
   ComputerDesktopIcon,
   InboxStackIcon,
   UserGroupIcon,
+  UserCircleIcon,
 } from '@heroicons/react/24/outline';
 
 interface NavItem {
@@ -44,6 +45,7 @@ const adminNavItems: NavItem[] = [
   { href: '/dashboard/admin/categories', label: 'Categories', icon: TagIcon },
   { href: '/dashboard/admin/sla', label: 'SLA Policies', icon: ClockIcon },
   { href: '/dashboard/admin/guest-users', label: 'Guest Users', icon: UserGroupIcon },
+  { href: '/dashboard/admin/customers', label: 'Customers', icon: UserCircleIcon },
   { href: '/dashboard/agents', label: 'Manage Users', icon: UsersIcon },
 ];
 
