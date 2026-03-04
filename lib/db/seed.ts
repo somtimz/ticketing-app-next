@@ -2,7 +2,7 @@ import * as schema from './schema';
 import { db } from '../db';
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
-import type { NewCategory, NewUser, NewEmployee, NewTicket, NewCaller, NewSLAPolicy, NewDepartment, NewGuestUser, NewServiceRequest } from './schema';
+import type { NewCategory, NewUser, NewEmployee, NewTicket, NewCaller, NewSLAPolicy, NewDepartment, NewGuestUser, NewServiceRequest, NewAsset, NewAssetHistory } from './schema';
 import type { NewTicketStatusHistory } from './schema';
 import { calculatePriority, calculateSLADueDates } from '@/lib/sla';
 
@@ -1230,6 +1230,539 @@ After setup, download and store your **backup codes** in a safe place (e.g. a pa
   }
 
   // ========================================
+  // ASSETS
+  // ========================================
+
+  console.log('Inserting assets...');
+
+  // Fetch user IDs by email (avoids hardcoding serial IDs)
+  const assetUsers = await db
+    .select({ id: schema.users.id, email: schema.users.email })
+    .from(schema.users);
+  const userIdByEmail = Object.fromEntries(assetUsers.map(u => [u.email, u.id]));
+
+  const assetAdminId = userIdByEmail['admin@company.com'];
+  const assetTl1Id   = userIdByEmail['teamlead1@company.com'];
+  const assetAg1Id   = userIdByEmail['agent1@company.com'];
+  const assetEmp1Id  = userIdByEmail['employee1@company.com'];
+  const assetEmp2Id  = userIdByEmail['employee2@company.com'];
+  const assetEmp3Id  = userIdByEmail['employee3@company.com'];
+  const assetEmp4Id  = userIdByEmail['employee4@company.com'];
+  const assetEmp5Id  = userIdByEmail['employee5@company.com'];
+
+  const assetsData: NewAsset[] = [
+    // --- Servers ---
+    {
+      assetTag: 'AST-0001',
+      name: 'Primary Application Server',
+      type: 'Hardware',
+      make: 'Dell',
+      model: 'PowerEdge R750',
+      serialNumber: 'DELLR750-SN001',
+      status: 'Active',
+      location: 'Server Room A',
+      purchaseDate: new Date('2023-01-15'),
+      warrantyExpiry: new Date('2026-01-15'),
+      cost: '8499.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0002',
+      name: 'Database Server',
+      type: 'Hardware',
+      make: 'Dell',
+      model: 'PowerEdge R650xs',
+      serialNumber: 'DELLR650-SN002',
+      status: 'Active',
+      location: 'Server Room A',
+      purchaseDate: new Date('2023-01-15'),
+      warrantyExpiry: new Date('2026-01-15'),
+      cost: '6299.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0003',
+      name: 'Backup Server',
+      type: 'Hardware',
+      make: 'HPE',
+      model: 'ProLiant DL380 Gen10',
+      serialNumber: 'HPE380-SN003',
+      status: 'Active',
+      location: 'Server Room B',
+      purchaseDate: new Date('2022-06-10'),
+      warrantyExpiry: new Date('2025-06-10'),
+      cost: '7100.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0004',
+      name: 'Dev/Test Server',
+      type: 'Hardware',
+      make: 'HPE',
+      model: 'ProLiant DL360 Gen10',
+      serialNumber: 'HPE360-SN004',
+      status: 'In Repair',
+      location: 'Server Room B',
+      purchaseDate: new Date('2021-03-20'),
+      warrantyExpiry: new Date('2024-03-20'),
+      cost: '5200.00',
+      assignedUserId: null
+    },
+    // --- Network: Routers & Switches ---
+    {
+      assetTag: 'AST-0005',
+      name: 'Core Network Router',
+      type: 'Hardware',
+      make: 'Cisco',
+      model: 'ISR 4451-X',
+      serialNumber: 'CISCO4451-SN005',
+      status: 'Active',
+      location: 'Network Closet L1',
+      purchaseDate: new Date('2022-09-01'),
+      warrantyExpiry: new Date('2025-09-01'),
+      cost: '3499.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0006',
+      name: 'Distribution Switch',
+      type: 'Hardware',
+      make: 'Cisco',
+      model: 'Catalyst 9300-48P',
+      serialNumber: 'CAT9300-SN006',
+      status: 'Active',
+      location: 'Network Closet L1',
+      purchaseDate: new Date('2022-09-01'),
+      warrantyExpiry: new Date('2025-09-01'),
+      cost: '4200.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0007',
+      name: 'Access Switch — Floor 2',
+      type: 'Hardware',
+      make: 'Cisco',
+      model: 'Catalyst 2960X-48FPS',
+      serialNumber: 'CAT2960-SN007',
+      status: 'Active',
+      location: 'Network Closet L2',
+      purchaseDate: new Date('2021-11-05'),
+      warrantyExpiry: new Date('2024-11-05'),
+      cost: '1850.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0008',
+      name: 'Access Switch — Floor 3 (Retired)',
+      type: 'Hardware',
+      make: 'Cisco',
+      model: 'Catalyst 2960X-24PS',
+      serialNumber: 'CAT2960-SN008',
+      status: 'Retired',
+      location: 'Storage Room',
+      purchaseDate: new Date('2019-04-12'),
+      warrantyExpiry: new Date('2022-04-12'),
+      cost: '1500.00',
+      assignedUserId: null
+    },
+    // --- Wireless Access Points ---
+    {
+      assetTag: 'AST-0009',
+      name: 'WAP — Conference Room A',
+      type: 'Hardware',
+      make: 'Ubiquiti',
+      model: 'UniFi AP-Pro',
+      serialNumber: 'UBNT-AP-SN009',
+      status: 'Active',
+      location: 'Conference Room A',
+      purchaseDate: new Date('2023-03-10'),
+      warrantyExpiry: new Date('2026-03-10'),
+      cost: '349.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0010',
+      name: 'WAP — Open Office Floor 2',
+      type: 'Hardware',
+      make: 'Ubiquiti',
+      model: 'UniFi AP-Pro',
+      serialNumber: 'UBNT-AP-SN010',
+      status: 'Active',
+      location: 'Floor 2 - Open Office',
+      purchaseDate: new Date('2023-03-10'),
+      warrantyExpiry: new Date('2026-03-10'),
+      cost: '349.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0011',
+      name: 'WAP — Break Room',
+      type: 'Hardware',
+      make: 'Ubiquiti',
+      model: 'UniFi AP-AC-Lite',
+      serialNumber: 'UBNT-AC-SN011',
+      status: 'In Repair',
+      location: 'Break Room',
+      purchaseDate: new Date('2021-07-22'),
+      warrantyExpiry: new Date('2024-07-22'),
+      cost: '189.00',
+      assignedUserId: null
+    },
+    // --- Printers ---
+    {
+      assetTag: 'AST-0012',
+      name: 'Laser Printer — Floor 2',
+      type: 'Hardware',
+      make: 'HP',
+      model: 'LaserJet Enterprise M507dn',
+      serialNumber: 'HPLJ-SN012',
+      status: 'Active',
+      location: 'Floor 2 - Print Station',
+      purchaseDate: new Date('2022-05-18'),
+      warrantyExpiry: new Date('2025-05-18'),
+      cost: '699.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0013',
+      name: 'Multifunction Printer — HR',
+      type: 'Hardware',
+      make: 'Brother',
+      model: 'MFC-L8900CDW',
+      serialNumber: 'BRMFC-SN013',
+      status: 'Active',
+      location: 'HR Office',
+      purchaseDate: new Date('2023-02-14'),
+      warrantyExpiry: new Date('2026-02-14'),
+      cost: '549.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0014',
+      name: 'Laser Printer — Finance (Retired)',
+      type: 'Hardware',
+      make: 'HP',
+      model: 'LaserJet Pro M404dn',
+      serialNumber: 'HPLJ-SN014',
+      status: 'Retired',
+      location: 'Storage Room',
+      purchaseDate: new Date('2018-09-03'),
+      warrantyExpiry: new Date('2021-09-03'),
+      cost: '399.00',
+      assignedUserId: null
+    },
+    // --- End-User Laptops ---
+    {
+      assetTag: 'AST-0015',
+      name: 'Laptop — John Smith',
+      type: 'Hardware',
+      make: 'Dell',
+      model: 'Latitude 5540',
+      serialNumber: 'DLAT5540-SN015',
+      status: 'Active',
+      location: 'Employee Desk',
+      purchaseDate: new Date('2023-08-01'),
+      warrantyExpiry: new Date('2026-08-01'),
+      cost: '1349.00',
+      assignedUserId: assetEmp1Id
+    },
+    {
+      assetTag: 'AST-0016',
+      name: 'Laptop — Jane Doe',
+      type: 'Hardware',
+      make: 'Apple',
+      model: 'MacBook Pro 14" M3',
+      serialNumber: 'MBP14M3-SN016',
+      status: 'Active',
+      location: 'Employee Desk',
+      purchaseDate: new Date('2024-01-20'),
+      warrantyExpiry: new Date('2027-01-20'),
+      cost: '1999.00',
+      assignedUserId: assetEmp2Id
+    },
+    {
+      assetTag: 'AST-0017',
+      name: 'Laptop — Bob Wilson',
+      type: 'Hardware',
+      make: 'Dell',
+      model: 'Latitude 5540',
+      serialNumber: 'DLAT5540-SN017',
+      status: 'Active',
+      location: 'Employee Desk',
+      purchaseDate: new Date('2023-08-01'),
+      warrantyExpiry: new Date('2026-08-01'),
+      cost: '1349.00',
+      assignedUserId: assetEmp3Id
+    },
+    {
+      assetTag: 'AST-0018',
+      name: 'Laptop — Sarah Johnson (Agent)',
+      type: 'Hardware',
+      make: 'Dell',
+      model: 'Latitude 7440',
+      serialNumber: 'DLAT7440-SN018',
+      status: 'Active',
+      location: 'Agent Workstation',
+      purchaseDate: new Date('2024-03-15'),
+      warrantyExpiry: new Date('2027-03-15'),
+      cost: '1699.00',
+      assignedUserId: assetAg1Id
+    },
+    {
+      assetTag: 'AST-0019',
+      name: 'Laptop — David Martinez (Team Lead)',
+      type: 'Hardware',
+      make: 'Apple',
+      model: 'MacBook Pro 16" M3 Pro',
+      serialNumber: 'MBP16M3-SN019',
+      status: 'Active',
+      location: 'Team Lead Office',
+      purchaseDate: new Date('2024-02-10'),
+      warrantyExpiry: new Date('2027-02-10'),
+      cost: '2499.00',
+      assignedUserId: assetTl1Id
+    },
+    // --- Desktops & Monitors ---
+    {
+      assetTag: 'AST-0020',
+      name: 'Desktop — Alice Brown',
+      type: 'Hardware',
+      make: 'Dell',
+      model: 'OptiPlex 7010',
+      serialNumber: 'DLOP7010-SN020',
+      status: 'Active',
+      location: 'Employee Desk',
+      purchaseDate: new Date('2022-11-30'),
+      warrantyExpiry: new Date('2025-11-30'),
+      cost: '999.00',
+      assignedUserId: assetEmp4Id
+    },
+    {
+      assetTag: 'AST-0021',
+      name: 'Monitor — Tom Harris',
+      type: 'Hardware',
+      make: 'Dell',
+      model: 'UltraSharp U2722D 27"',
+      serialNumber: 'DLU2722-SN021',
+      status: 'Active',
+      location: 'Employee Desk',
+      purchaseDate: new Date('2023-01-10'),
+      warrantyExpiry: new Date('2026-01-10'),
+      cost: '549.00',
+      assignedUserId: assetEmp5Id
+    },
+    {
+      assetTag: 'AST-0022',
+      name: 'Monitor — Spare (Pool)',
+      type: 'Hardware',
+      make: 'Dell',
+      model: 'UltraSharp U2422H 24"',
+      serialNumber: 'DLU2422-SN022',
+      status: 'Active',
+      location: 'IT Storage',
+      purchaseDate: new Date('2023-01-10'),
+      warrantyExpiry: new Date('2026-01-10'),
+      cost: '349.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0023',
+      name: 'Docking Station — John Smith',
+      type: 'Hardware',
+      make: 'Dell',
+      model: 'WD19TBS Thunderbolt',
+      serialNumber: 'DLWD19-SN023',
+      status: 'Active',
+      location: 'Employee Desk',
+      purchaseDate: new Date('2023-08-01'),
+      warrantyExpiry: new Date('2026-08-01'),
+      cost: '249.00',
+      assignedUserId: assetEmp1Id
+    },
+    // --- Peripherals ---
+    {
+      assetTag: 'AST-0024',
+      name: 'Headset — Jane Doe',
+      type: 'Hardware',
+      make: 'Jabra',
+      model: 'Evolve2 65',
+      serialNumber: 'JABRA65-SN024',
+      status: 'Active',
+      location: 'Employee Desk',
+      purchaseDate: new Date('2023-09-12'),
+      warrantyExpiry: new Date('2026-09-12'),
+      cost: '299.00',
+      assignedUserId: assetEmp2Id
+    },
+    {
+      assetTag: 'AST-0025',
+      name: 'Keyboard + Mouse Combo — Pool',
+      type: 'Hardware',
+      make: 'Logitech',
+      model: 'MX Keys Combo',
+      serialNumber: 'LGTMX-SN025',
+      status: 'Retired',
+      location: 'IT Storage',
+      purchaseDate: new Date('2021-05-05'),
+      warrantyExpiry: null,
+      cost: '189.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0026',
+      name: 'Headset — Pool (In Repair)',
+      type: 'Hardware',
+      make: 'Jabra',
+      model: 'Evolve2 40',
+      serialNumber: 'JABRA40-SN026',
+      status: 'In Repair',
+      location: 'IT Storage',
+      purchaseDate: new Date('2022-03-18'),
+      warrantyExpiry: new Date('2025-03-18'),
+      cost: '199.00',
+      assignedUserId: null
+    },
+    // --- Software Licenses ---
+    {
+      assetTag: 'AST-0027',
+      name: 'Microsoft 365 Business Premium (25-seat)',
+      type: 'Software',
+      make: 'Microsoft',
+      model: 'Microsoft 365 Business Premium',
+      serialNumber: 'M365-LIC-2024-001',
+      status: 'Active',
+      location: null,
+      purchaseDate: new Date('2024-01-01'),
+      warrantyExpiry: new Date('2025-01-01'),
+      cost: '3750.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0028',
+      name: 'Adobe Creative Cloud (5-seat)',
+      type: 'Software',
+      make: 'Adobe',
+      model: 'Creative Cloud for Teams',
+      serialNumber: 'ACC-LIC-2024-001',
+      status: 'Active',
+      location: null,
+      purchaseDate: new Date('2024-04-01'),
+      warrantyExpiry: new Date('2025-04-01'),
+      cost: '2994.00',
+      assignedUserId: null
+    }
+  ];
+
+  await db.insert(schema.assets).values(assetsData).onConflictDoNothing();
+  console.log(`  ✓ ${assetsData.length} Assets created`);
+
+  // ========================================
+  // ASSET HISTORY
+  // ========================================
+
+  console.log('Inserting asset history...');
+
+  // Fetch inserted assets to map assetTag → id
+  const insertedAssets = await db.select().from(schema.assets);
+  const assetIdByTag = Object.fromEntries(insertedAssets.map(a => [a.assetTag, a.id]));
+
+  const assetHistoryData: NewAssetHistory[] = [
+    // Closed (completed) prior assignments
+    {
+      assetId: assetIdByTag['AST-0016'],
+      assignedToUserId: assetEmp3Id,
+      assignedByUserId: assetAdminId,
+      assignedAt: new Date('2023-06-01'),
+      returnedAt: new Date('2023-12-31'),
+      notes: 'Temporary loan to Bob Wilson while his laptop was in repair'
+    },
+    {
+      assetId: assetIdByTag['AST-0023'],
+      assignedToUserId: assetEmp3Id,
+      assignedByUserId: assetAdminId,
+      assignedAt: new Date('2022-05-01'),
+      returnedAt: new Date('2023-07-31'),
+      notes: 'Returned when Bob Wilson was reassigned to a different desk'
+    },
+    // Open (current) assignments
+    {
+      assetId: assetIdByTag['AST-0015'],
+      assignedToUserId: assetEmp1Id,
+      assignedByUserId: assetAdminId,
+      assignedAt: new Date('2023-08-05'),
+      returnedAt: null,
+      notes: 'Initial issue to John Smith — Engineering onboarding'
+    },
+    {
+      assetId: assetIdByTag['AST-0016'],
+      assignedToUserId: assetEmp2Id,
+      assignedByUserId: assetAdminId,
+      assignedAt: new Date('2024-01-25'),
+      returnedAt: null,
+      notes: 'MacBook issued to Jane Doe — Marketing hardware refresh'
+    },
+    {
+      assetId: assetIdByTag['AST-0017'],
+      assignedToUserId: assetEmp3Id,
+      assignedByUserId: assetAdminId,
+      assignedAt: new Date('2023-08-05'),
+      returnedAt: null,
+      notes: 'Initial issue to Bob Wilson — Sales onboarding'
+    },
+    {
+      assetId: assetIdByTag['AST-0018'],
+      assignedToUserId: assetAg1Id,
+      assignedByUserId: assetAdminId,
+      assignedAt: new Date('2024-03-20'),
+      returnedAt: null,
+      notes: 'Issued to agent Sarah Johnson — upgraded workstation'
+    },
+    {
+      assetId: assetIdByTag['AST-0019'],
+      assignedToUserId: assetTl1Id,
+      assignedByUserId: assetAdminId,
+      assignedAt: new Date('2024-02-15'),
+      returnedAt: null,
+      notes: 'Issued to team lead David Martinez — leadership hardware refresh'
+    },
+    {
+      assetId: assetIdByTag['AST-0020'],
+      assignedToUserId: assetEmp4Id,
+      assignedByUserId: assetAdminId,
+      assignedAt: new Date('2022-12-02'),
+      returnedAt: null,
+      notes: 'Desktop issued to Alice Brown — HR department standard build'
+    },
+    {
+      assetId: assetIdByTag['AST-0021'],
+      assignedToUserId: assetEmp5Id,
+      assignedByUserId: assetAdminId,
+      assignedAt: new Date('2023-01-15'),
+      returnedAt: null,
+      notes: 'Monitor issued to Tom Harris — Finance department'
+    },
+    {
+      assetId: assetIdByTag['AST-0023'],
+      assignedToUserId: assetEmp1Id,
+      assignedByUserId: assetAdminId,
+      assignedAt: new Date('2023-08-05'),
+      returnedAt: null,
+      notes: 'Docking station issued alongside laptop to John Smith'
+    },
+    {
+      assetId: assetIdByTag['AST-0024'],
+      assignedToUserId: assetEmp2Id,
+      assignedByUserId: assetAdminId,
+      assignedAt: new Date('2023-09-15'),
+      returnedAt: null,
+      notes: 'Headset issued to Jane Doe for remote meetings'
+    }
+  ];
+
+  await db.insert(schema.assetHistory).values(assetHistoryData).onConflictDoNothing();
+  console.log(`  ✓ ${assetHistoryData.length} Asset history entries created (9 open, 2 completed)`);
+
+  // ========================================
   // SUMMARY
   // ========================================
 
@@ -1247,6 +1780,8 @@ After setup, download and store your **backup codes** in a safe place (e.g. a pa
   console.log('    - P4 (Low): 8');
   console.log('  Ticket Status History: 17 entries');
   console.log('  KB Articles: 9 total (8 published, 1 draft)');
+  console.log('  Assets: 28 total (22 Active, 3 In Repair, 3 Retired)');
+  console.log('  Asset History: 11 entries (9 open, 2 completed)');
   console.log('\nDefault Credentials:');
   console.log('  Admin:     admin@company.com / admin123');
   console.log('  Team Lead: teamlead1@company.com / teamlead123');

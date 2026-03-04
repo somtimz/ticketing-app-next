@@ -112,7 +112,15 @@
       "Bash(sudo apt-get install:*)",
       "Bash(~/.cache/ms-playwright/chromium-1208/chrome-linux64/chrome:*)",
       "Bash(gh pr create:*)",
-      "Bash(gh auth status:*)"
+      "Bash(gh auth status:*)",
+      "Bash(lsof:*)",
+      "Bash(git:*)",
+      "mcp__claude_ai_Vercel__get_project",
+      "Bash(BASE_URL=https://ticketing-app-next.vercel.app npx playwright:*)",
+      "mcp__claude_ai_Vercel__get_deployment",
+      "Bash(python3:*)",
+      "Bash(gh run:*)",
+      "mcp__plugin_playwright_playwright__browser_install"
     ]
   },
   "enableAllProjectMcpServers": true,
