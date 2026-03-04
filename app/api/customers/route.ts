@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { customers, tickets, serviceRequests } from '@/lib/db/schema';
+import { customers } from '@/lib/db/schema';
 import { eq, sql, or, ilike } from 'drizzle-orm';
 import { requireRole, handleAPIError } from '@/lib/api-error';
 import { createCustomerSchema } from '@/lib/validators';
@@ -28,12 +28,8 @@ export async function GET(req: NextRequest) {
         notes: customers.notes,
         isActive: customers.isActive,
         createdAt: customers.createdAt,
-        ticketCount: sql<number>`(
-          SELECT COUNT(*) FROM ${tickets} WHERE ${tickets.customerId} = ${customers.id}
-        )`,
-        serviceRequestCount: sql<number>`(
-          SELECT COUNT(*) FROM ${serviceRequests} WHERE ${serviceRequests.customerId} = ${customers.id}
-        )`
+        ticketCount: sql<number>`(SELECT COUNT(*)::int FROM tickets WHERE customer_id = customers.id)`,
+        serviceRequestCount: sql<number>`(SELECT COUNT(*)::int FROM service_requests WHERE customer_id = customers.id)`
       })
       .from(customers);
 
