@@ -9,6 +9,9 @@ import {
   ArrowLeftIcon,
   LinkIcon,
   TrashIcon,
+  PlusIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 
 interface Problem {
@@ -25,6 +28,16 @@ interface Problem {
   linkedIncidents: Array<{ id: number; ticketNumber: string; title: string; status: string; linkedAt: string }>;
   createdAt: string;
   updatedAt: string;
+}
+
+interface KnownError {
+  id: number;
+  title: string;
+  workaroundDescription: string;
+  isActive: boolean;
+  linkedArticleId: number | null;
+  articleTitle: string | null;
+  createdAt: string;
 }
 
 const STATUSES = ['New', 'Under Investigation', 'Known Error', 'Resolved', 'Closed'];
@@ -48,8 +61,17 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ id: st
   const [linkTicketId, setLinkTicketId] = useState('');
   const [linkError, setLinkError] = useState('');
 
+  // Known errors state
+  const [knownErrors, setKnownErrors] = useState<KnownError[]>([]);
+  const [keLoading, setKeLoading] = useState(false);
+  const [showKeForm, setShowKeForm] = useState(false);
+  const [keTitle, setKeTitle] = useState('');
+  const [keWorkaround, setKeWorkaround] = useState('');
+  const [keSubmitting, setKeSubmitting] = useState(false);
+
   const role = session?.user?.role;
   const canEdit = role === 'Agent' || role === 'TeamLead' || role === 'Admin';
+  const canDelete = role === 'TeamLead' || role === 'Admin';
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -61,7 +83,18 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ id: st
     setLoading(false);
   }, [id]);
 
+  const loadKnownErrors = useCallback(async () => {
+    setKeLoading(true);
+    const res = await fetch(`/api/problems/${id}/known-errors`);
+    if (res.ok) {
+      const data = await res.json();
+      setKnownErrors(data.knownErrors ?? []);
+    }
+    setKeLoading(false);
+  }, [id]);
+
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadKnownErrors(); }, [loadKnownErrors]);
 
   const patch = async (updates: Record<string, unknown>) => {
     setSaving(true);
@@ -104,6 +137,38 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ id: st
       body: JSON.stringify({ ticketId }),
     });
     load();
+  };
+
+  const createKnownError = async () => {
+    if (!keTitle.trim() || !keWorkaround.trim()) return;
+    setKeSubmitting(true);
+    const res = await fetch(`/api/problems/${id}/known-errors`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: keTitle, workaroundDescription: keWorkaround }),
+    });
+    if (res.ok) {
+      setKeTitle('');
+      setKeWorkaround('');
+      setShowKeForm(false);
+      loadKnownErrors();
+    }
+    setKeSubmitting(false);
+  };
+
+  const toggleKnownErrorActive = async (keId: number, isActive: boolean) => {
+    await fetch(`/api/problems/${id}/known-errors/${keId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isActive: !isActive }),
+    });
+    loadKnownErrors();
+  };
+
+  const deleteKnownError = async (keId: number) => {
+    if (!confirm('Delete this known error?')) return;
+    await fetch(`/api/problems/${id}/known-errors/${keId}`, { method: 'DELETE' });
+    loadKnownErrors();
   };
 
   if (loading) return <div className="p-6 text-gray-400">Loading…</div>;
@@ -269,6 +334,110 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ id: st
                         <TrashIcon className="h-4 w-4" />
                       </button>
                     )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Known Errors */}
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
+                <ExclamationTriangleIcon className="h-4 w-4 text-orange-400" />
+                Known Errors ({knownErrors.length})
+              </h3>
+              {canEdit && !isTerminal && (
+                <button
+                  onClick={() => setShowKeForm(v => !v)}
+                  className="flex items-center gap-1 text-xs text-violet-400 hover:text-violet-300"
+                >
+                  <PlusIcon className="h-3.5 w-3.5" />
+                  {showKeForm ? 'Cancel' : 'Add Known Error'}
+                </button>
+              )}
+            </div>
+
+            {showKeForm && (
+              <div className="bg-gray-800 rounded-lg p-4 mb-4 space-y-3 border border-gray-700">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Title *</label>
+                  <input
+                    autoFocus
+                    value={keTitle}
+                    onChange={e => setKeTitle(e.target.value)}
+                    placeholder="e.g. VPN drops after 2h idle"
+                    className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Workaround Description *</label>
+                  <textarea
+                    rows={3}
+                    value={keWorkaround}
+                    onChange={e => setKeWorkaround(e.target.value)}
+                    placeholder="Describe the workaround steps…"
+                    className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={createKnownError}
+                    disabled={keSubmitting || !keTitle.trim() || !keWorkaround.trim()}
+                    className="bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white px-3 py-1.5 rounded text-sm"
+                  >
+                    {keSubmitting ? 'Saving…' : 'Save Known Error'}
+                  </button>
+                  <button onClick={() => setShowKeForm(false)} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded text-sm">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {keLoading ? (
+              <p className="text-sm text-gray-400">Loading…</p>
+            ) : knownErrors.length === 0 ? (
+              <p className="text-sm text-gray-500 italic">No known errors documented yet</p>
+            ) : (
+              <div className="space-y-3">
+                {knownErrors.map(ke => (
+                  <div key={ke.id} className={`rounded-lg border p-4 ${ke.isActive ? 'border-orange-800 bg-orange-950/30' : 'border-gray-700 bg-gray-800 opacity-60'}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-medium text-white">{ke.title}</span>
+                          {ke.isActive ? (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-orange-900 text-orange-200">Active</span>
+                          ) : (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-gray-700 text-gray-400">Inactive</span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-400 whitespace-pre-wrap">{ke.workaroundDescription}</p>
+                        {ke.articleTitle && (
+                          <p className="text-xs text-violet-400 mt-1">KB: {ke.articleTitle}</p>
+                        )}
+                      </div>
+                      {canEdit && !isTerminal && (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => toggleKnownErrorActive(ke.id, ke.isActive)}
+                            className="text-gray-400 hover:text-green-400"
+                            title={ke.isActive ? 'Mark inactive' : 'Mark active'}
+                          >
+                            <CheckCircleIcon className="h-4 w-4" />
+                          </button>
+                          {canDelete && (
+                            <button
+                              onClick={() => deleteKnownError(ke.id)}
+                              className="text-gray-400 hover:text-red-400"
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
