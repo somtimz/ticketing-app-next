@@ -37,7 +37,7 @@ const STATUS_COLORS: Record<TicketStatus, string> = {
   New: 'bg-status-open text-white',
   Assigned: 'bg-blue-500 text-white',
   InProgress: 'bg-status-inProgress text-white',
-  Pending: 'bg-yellow-500 text-white',
+  'On Hold': 'bg-yellow-500 text-white',
   Resolved: 'bg-status-resolved text-white',
   Closed: 'bg-status-closed text-white'
 };
@@ -46,7 +46,7 @@ const STATUS_LABELS: Record<TicketStatus, string> = {
   New: 'New',
   Assigned: 'Assigned',
   InProgress: 'In Progress',
-  Pending: 'Pending',
+  'On Hold': 'On Hold',
   Resolved: 'Resolved',
   Closed: 'Closed'
 };
@@ -81,7 +81,7 @@ export default function IssueLoggingPage(): JSX.Element {
   }, []);
 
   const openCount = tickets.filter(t => t.status === 'New' || t.status === 'Assigned').length;
-  const inProgressCount = tickets.filter(t => t.status === 'InProgress' || t.status === 'Pending').length;
+  const inProgressCount = tickets.filter(t => t.status === 'InProgress' || t.status === 'On Hold').length;
   const resolvedCount = tickets.filter(t => t.status === 'Resolved').length;
   const closedCount = tickets.filter(t => t.status === 'Closed').length;
 

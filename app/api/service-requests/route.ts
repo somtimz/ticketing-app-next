@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { serviceRequests, users } from '@/lib/db/schema';
+import { serviceRequests, users, catalogItems } from '@/lib/db/schema';
 import { eq, desc, sql } from 'drizzle-orm';
 import { requireAuth, handleAPIError } from '@/lib/api-error';
 import { hasRole } from '@/lib/rbac';
 import { createServiceRequestSchema } from '@/lib/validators';
 import { sendServiceRequestCreatedEmail } from '@/lib/email';
+import { z } from 'zod';
+
+const createSRWithCatalogSchema = createServiceRequestSchema.extend({
+  catalogItemId: z.number().int().positive().optional().nullable(),
+});
 
 // GET /api/service-requests
 export async function GET(req: NextRequest) {
@@ -33,6 +38,7 @@ export async function GET(req: NextRequest) {
         approvedAt: serviceRequests.approvedAt,
         fulfilledAt: serviceRequests.fulfilledAt,
         requesterId: serviceRequests.requesterId,
+        slaResolutionDue: serviceRequests.slaResolutionDue,
         requester: { id: users.id, fullName: users.fullName, email: users.email }
       })
       .from(serviceRequests)
@@ -57,12 +63,25 @@ export async function POST(req: NextRequest) {
     requireAuth(session);
 
     const body = await req.json();
-    const data = createServiceRequestSchema.parse(body);
+    const data = createSRWithCatalogSchema.parse(body);
 
     // Generate request number
     const countResult = await db.select({ id: serviceRequests.id }).from(serviceRequests);
     const sequence = String(countResult.length + 1).padStart(4, '0');
     const requestNumber = `REQ-${sequence}`;
+
+    // Compute slaResolutionDue from catalog item if provided
+    let slaResolutionDue: Date | null = null;
+    if (data.catalogItemId) {
+      const [item] = await db
+        .select({ estimatedSLAHours: catalogItems.estimatedSLAHours })
+        .from(catalogItems)
+        .where(eq(catalogItems.id, data.catalogItemId))
+        .limit(1);
+      if (item) {
+        slaResolutionDue = new Date(Date.now() + item.estimatedSLAHours * 3600 * 1000);
+      }
+    }
 
     const [sr] = await db
       .insert(serviceRequests)
@@ -73,7 +92,9 @@ export async function POST(req: NextRequest) {
         category: data.category,
         priority: data.priority,
         requesterId: parseInt(session!.user.id, 10),
-        status: 'Submitted'
+        status: 'Submitted',
+        catalogItemId: data.catalogItemId ?? null,
+        slaResolutionDue,
       })
       .returning();
 

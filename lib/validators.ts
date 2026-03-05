@@ -21,7 +21,7 @@ export const createTicketSchema = z.object({
 });
 
 export const updateTicketStatusSchema = z.object({
-  status: z.enum(['New', 'Assigned', 'InProgress', 'Pending', 'Resolved', 'Closed'], {
+  status: z.enum(['New', 'Assigned', 'InProgress', 'On Hold', 'Resolved', 'Closed'], {
     errorMap: () => ({ message: 'Invalid status value' })
   }),
   notes: z.string().optional()
@@ -62,7 +62,10 @@ export const createKBArticleSchema = z.object({
   categoryId: z.number().int().optional(),
   isPublished: z.boolean().default(false),
   isAgentOnly: z.boolean().default(false),
-  tagIds: z.array(z.number().int()).optional()
+  tagIds: z.array(z.number().int()).optional(),
+  articleType: z.enum(['FAQ', 'HowTo', 'KnownError', 'General']).optional(),
+  expiresAt: z.string().datetime({ offset: true }).optional().nullable(),
+  reviewStatus: z.enum(['Draft', 'InReview', 'Published']).optional()
 });
 export const updateKBArticleSchema = createKBArticleSchema.partial();
 export type CreateKBArticleInput = z.infer<typeof createKBArticleSchema>;

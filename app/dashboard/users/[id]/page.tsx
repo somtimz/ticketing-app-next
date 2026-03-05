@@ -18,7 +18,7 @@ const STATUS_COLORS: Record<string, string> = {
   Rejected: 'bg-red-100 text-red-700',
   New: 'bg-blue-100 text-blue-700',
   Assigned: 'bg-violet-100 text-violet-700',
-  Pending: 'bg-amber-100 text-amber-700',
+  'On Hold': 'bg-amber-100 text-amber-700',
   Resolved: 'bg-green-100 text-green-700',
   Closed: 'bg-gray-100 text-gray-500'
 };

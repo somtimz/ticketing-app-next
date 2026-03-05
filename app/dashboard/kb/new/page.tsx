@@ -11,6 +11,9 @@ interface Category {
   name: string;
 }
 
+type ArticleType = 'FAQ' | 'HowTo' | 'KnownError' | 'General';
+type ReviewStatus = 'Draft' | 'InReview' | 'Published';
+
 export default function NewKBArticlePage(): JSX.Element {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -21,6 +24,9 @@ export default function NewKBArticlePage(): JSX.Element {
   const [categoryId, setCategoryId] = useState('');
   const [isPublished, setIsPublished] = useState(false);
   const [isAgentOnly, setIsAgentOnly] = useState(false);
+  const [articleType, setArticleType] = useState<ArticleType>('General');
+  const [expiresAt, setExpiresAt] = useState('');
+  const [reviewStatus, setReviewStatus] = useState<ReviewStatus>('Draft');
   const [preview, setPreview] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,6 +36,7 @@ export default function NewKBArticlePage(): JSX.Element {
 
   const userRole = session?.user?.role as string | undefined;
   const isAgent = userRole === 'Agent' || userRole === 'TeamLead' || userRole === 'Admin';
+  const isTeamLead = userRole === 'TeamLead' || userRole === 'Admin';
 
   useEffect(() => {
     if (status === 'authenticated' && !isAgent) {
@@ -97,7 +104,10 @@ export default function NewKBArticlePage(): JSX.Element {
           categoryId: categoryId ? parseInt(categoryId) : undefined,
           isPublished,
           isAgentOnly,
-          tagIds: selectedTags.map(t => t.id)
+          tagIds: selectedTags.map(t => t.id),
+          articleType,
+          expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
+          reviewStatus
         })
       });
       if (!res.ok) {
@@ -151,21 +161,71 @@ export default function NewKBArticlePage(): JSX.Element {
             />
           </div>
 
-          {/* Category */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Category
-            </label>
-            <select
-              value={categoryId}
-              onChange={e => setCategoryId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="">No category</option>
-              {categories.map(cat => (
-                <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
-              ))}
-            </select>
+          {/* Article Type + Category (2-col) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Article Type
+              </label>
+              <select
+                value={articleType}
+                onChange={e => setArticleType(e.target.value as ArticleType)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="General">General</option>
+                <option value="FAQ">FAQ</option>
+                <option value="HowTo">How-To</option>
+                <option value="KnownError">Known Error</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Category
+              </label>
+              <select
+                value={categoryId}
+                onChange={e => setCategoryId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="">No category</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Expiry date + Review Status (2-col) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Expiry Date
+              </label>
+              <input
+                type="date"
+                value={expiresAt}
+                onChange={e => setExpiresAt(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+              <p className="mt-1 text-xs text-gray-400">Leave blank for no expiry.</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Review Status
+              </label>
+              <select
+                value={reviewStatus}
+                onChange={e => setReviewStatus(e.target.value as ReviewStatus)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="Draft">Draft</option>
+                <option value="InReview">In Review</option>
+                {isTeamLead && <option value="Published">Published</option>}
+              </select>
+            </div>
           </div>
 
           {/* Content */}
@@ -238,7 +298,7 @@ export default function NewKBArticlePage(): JSX.Element {
                       onClick={() => removeTag(tag.id)}
                       className="text-gray-400 hover:text-gray-600"
                     >
-                      ×
+                      &times;
                     </button>
                   </span>
                 ))}

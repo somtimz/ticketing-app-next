@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, boolean, timestamp, numeric } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, integer, boolean, timestamp, numeric, uniqueIndex } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 // Departments table (for team-level visibility)
@@ -149,7 +149,7 @@ export const tickets: any = pgTable('tickets', {
     enum: ['P1', 'P2', 'P3', 'P4']
   }).notNull().default('P3'),
   status: text('status', {
-    enum: ['New', 'Assigned', 'InProgress', 'Pending', 'Resolved', 'Closed']
+    enum: ['New', 'Assigned', 'InProgress', 'On Hold', 'Resolved', 'Closed']
   }).notNull().default('New'),
   callerId: integer('caller_id').references(() => callers.id, {
     onDelete: 'restrict'
@@ -178,6 +178,11 @@ export const tickets: any = pgTable('tickets', {
   lastActivityAt: timestamp('last_activity_at'), // For auto-status transitions
   slaFirstResponseDue: timestamp('sla_first_response_due'),
   slaResolutionDue: timestamp('sla_resolution_due'),
+  slaHeldAt: timestamp('sla_held_at'), // Set when ticket enters 'On Hold'; cleared when resumed
+  totalHoldMinutes: integer('total_hold_minutes').notNull().default(0), // Cumulative hold time in minutes
+  slaBreachNotifiedAt: timestamp('sla_breach_notified_at'), // Last time a breach notification was sent
+  isMajorIncident: boolean('is_major_incident').notNull().default(false),
+  majorIncidentNotes: text('major_incident_notes'),
   resolvedAt: timestamp('resolved_at'),
   closedAt: timestamp('closed_at'),
   createdAt: timestamp('created_at')
@@ -223,10 +228,10 @@ export const ticketStatusHistory = pgTable('ticket_status_history', {
     .notNull()
     .references(() => tickets.id, { onDelete: 'cascade' }),
   fromStatus: text('from_status', {
-    enum: ['New', 'Assigned', 'InProgress', 'Pending', 'Resolved', 'Closed']
+    enum: ['New', 'Assigned', 'InProgress', 'On Hold', 'Resolved', 'Closed']
   }),
   toStatus: text('to_status', {
-    enum: ['New', 'Assigned', 'InProgress', 'Pending', 'Resolved', 'Closed']
+    enum: ['New', 'Assigned', 'InProgress', 'On Hold', 'Resolved', 'Closed']
   }).notNull(),
   changedBy: integer('changed_by').references(() => users.id, {
     onDelete: 'set null'
@@ -310,6 +315,12 @@ export const knowledgeBaseArticles = pgTable('knowledge_base_articles', {
   isPublished: boolean('is_published').notNull().default(false),
   isAgentOnly: boolean('is_agent_only').notNull().default(false),
   publishedAt: timestamp('published_at'),
+  // Phase 2A additions
+  articleType: text('article_type', { enum: ['FAQ', 'HowTo', 'KnownError', 'General'] }).notNull().default('General'),
+  expiresAt: timestamp('expires_at'),
+  reviewStatus: text('review_status', { enum: ['Draft', 'InReview', 'Published'] }).notNull().default('Draft'),
+  reviewedById: integer('reviewed_by_id').references(() => users.id, { onDelete: 'set null' }),
+  reviewedAt: timestamp('reviewed_at'),
   createdAt: timestamp('created_at')
     .notNull()
     .default(sql`now()`),
@@ -367,6 +378,22 @@ export const assetHistory = pgTable('asset_history', {
   notes: text('notes')
 });
 
+// Service Catalog Items table (Phase 2D)
+export const catalogItems = pgTable('catalog_items', {
+  id: serial('id').primaryKey(),
+  title: text('title').notNull(),
+  description: text('description').notNull(),
+  category: text('category', {
+    enum: ['New Equipment', 'Software Access', 'Account Setup', 'Hardware Repair', 'Other']
+  }).notNull(),
+  estimatedSLAHours: integer('estimated_sla_hours').notNull().default(24),
+  eligibleRoles: text('eligible_roles').notNull().default('[]'), // JSON array of roles
+  icon: text('icon'), // emoji or icon name
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().default(sql`now()`),
+  updatedAt: timestamp('updated_at').notNull().default(sql`now()`)
+});
+
 // Service Requests table (REQ-XXXX)
 export const serviceRequests = pgTable('service_requests', {
   id: serial('id').primaryKey(),
@@ -383,10 +410,12 @@ export const serviceRequests = pgTable('service_requests', {
   requesterId: integer('requester_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
   assignedAgentId: integer('assigned_agent_id').references(() => users.id, { onDelete: 'set null' }),
   customerId: integer('customer_id').references(() => customers.id, { onDelete: 'set null' }),
+  catalogItemId: integer('catalog_item_id').references(() => catalogItems.id, { onDelete: 'set null' }), // Phase 2D
   approvedById: integer('approved_by_id').references(() => users.id, { onDelete: 'set null' }),
   approvedAt: timestamp('approved_at'),
   fulfilledAt: timestamp('fulfilled_at'),
   rejectionReason: text('rejection_reason'),
+  slaResolutionDue: timestamp('sla_resolution_due'), // Phase 2E
   createdAt: timestamp('created_at').notNull().default(sql`now()`),
   updatedAt: timestamp('updated_at').notNull().default(sql`now()`)
 });
@@ -423,7 +452,183 @@ export const assetLinks = pgTable('asset_links', {
   linkedAt: timestamp('linked_at').notNull().default(sql`now()`)
 });
 
-// Type exports
+// Escalation Rules table (Phase 1C)
+export const escalationRules = pgTable('escalation_rules', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  priority: text('priority', { enum: ['P1', 'P2', 'P3', 'P4'] }).notNull(),
+  minutesBeforeBreach: integer('minutes_before_breach').notNull(), // Negative = after breach (e.g. 30 = 30 min before; -30 = 30 min after)
+  action: text('action', {
+    enum: ['notify_teamlead', 'notify_admin', 'reassign']
+  }).notNull(),
+  reassignToAgentId: integer('reassign_to_agent_id').references(() => users.id, { onDelete: 'set null' }),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().default(sql`now()`),
+  updatedAt: timestamp('updated_at').notNull().default(sql`now()`)
+});
+
+// ── Phase 2C: KB Article Comments ─────────────────────────────────────────────
+export const kbComments = pgTable('kb_comments', {
+  id: serial('id').primaryKey(),
+  articleId: integer('article_id').notNull().references(() => knowledgeBaseArticles.id, { onDelete: 'cascade' }),
+  authorId: integer('author_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at').notNull().default(sql`now()`),
+  updatedAt: timestamp('updated_at').notNull().default(sql`now()`)
+});
+
+// ── Phase 2F: SR Multi-step Approval Steps ────────────────────────────────────
+export const approvalSteps = pgTable('approval_steps', {
+  id: serial('id').primaryKey(),
+  serviceRequestId: integer('service_request_id').notNull().references(() => serviceRequests.id, { onDelete: 'cascade' }),
+  stepOrder: integer('step_order').notNull().default(1),
+  approverId: integer('approver_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  status: text('status', { enum: ['Pending', 'Approved', 'Rejected'] }).notNull().default('Pending'),
+  respondedAt: timestamp('responded_at'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').notNull().default(sql`now()`)
+});
+
+// ── Phase 3D: Response Templates ─────────────────────────────────────────────
+export const responseTemplates = pgTable('response_templates', {
+  id: serial('id').primaryKey(),
+  title: text('title').notNull(),
+  body: text('body').notNull(),
+  category: text('category'), // optional grouping label
+  createdById: integer('created_by_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  isGlobal: boolean('is_global').notNull().default(false), // visible to all agents
+  createdAt: timestamp('created_at').notNull().default(sql`now()`),
+  updatedAt: timestamp('updated_at').notNull().default(sql`now()`)
+});
+
+// ── Phase 3E: Comment Mentions ────────────────────────────────────────────────
+export const commentMentions = pgTable('comment_mentions', {
+  id: serial('id').primaryKey(),
+  commentId: integer('comment_id').notNull().references(() => comments.id, { onDelete: 'cascade' }),
+  mentionedUserId: integer('mentioned_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').notNull().default(sql`now()`)
+});
+
+// ── Phase 3F: In-App Notifications ───────────────────────────────────────────
+export const notifications = pgTable('notifications', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  type: text('type', {
+    enum: ['assigned', 'comment', 'mention', 'sla_breach', 'sr_approval', 'major_incident', 'escalation']
+  }).notNull(),
+  title: text('title').notNull(),
+  body: text('body').notNull(),
+  linkUrl: text('link_url'),
+  readAt: timestamp('read_at'),
+  createdAt: timestamp('created_at').notNull().default(sql`now()`)
+});
+
+// ── Phase 4: Problem Management ───────────────────────────────────────────────
+export const problems = pgTable('problems', {
+  id: serial('id').primaryKey(),
+  problemNumber: text('problem_number').notNull().unique(), // PRB-0001
+  title: text('title').notNull(),
+  description: text('description').notNull(),
+  status: text('status', {
+    enum: ['New', 'Under Investigation', 'Known Error', 'Resolved', 'Closed']
+  }).notNull().default('New'),
+  priority: text('priority', { enum: ['P1', 'P2', 'P3', 'P4'] }).notNull().default('P3'),
+  assignedAgentId: integer('assigned_agent_id').references(() => users.id, { onDelete: 'set null' }),
+  createdById: integer('created_by_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  rootCause: text('root_cause'),
+  workaround: text('workaround'),
+  resolvedAt: timestamp('resolved_at'),
+  closedAt: timestamp('closed_at'),
+  createdAt: timestamp('created_at').notNull().default(sql`now()`),
+  updatedAt: timestamp('updated_at').notNull().default(sql`now()`)
+});
+
+// Problem ↔ Incident links (many-to-many)
+export const problemIncidents = pgTable('problem_incidents', {
+  id: serial('id').primaryKey(),
+  problemId: integer('problem_id').notNull().references(() => problems.id, { onDelete: 'cascade' }),
+  ticketId: integer('ticket_id').notNull().references(() => tickets.id, { onDelete: 'cascade' }),
+  linkedAt: timestamp('linked_at').notNull().default(sql`now()`)
+});
+
+// Known Error Database (KEDB)
+export const knownErrors = pgTable('known_errors', {
+  id: serial('id').primaryKey(),
+  problemId: integer('problem_id').notNull().references(() => problems.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  workaroundDescription: text('workaround_description').notNull(),
+  linkedArticleId: integer('linked_article_id').references(() => knowledgeBaseArticles.id, { onDelete: 'set null' }),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().default(sql`now()`),
+  updatedAt: timestamp('updated_at').notNull().default(sql`now()`)
+});
+
+// ── Phase 5: Change Management ────────────────────────────────────────────────
+export const changes = pgTable('changes', {
+  id: serial('id').primaryKey(),
+  changeNumber: text('change_number').notNull().unique(), // CHG-0001
+  title: text('title').notNull(),
+  description: text('description').notNull(),
+  changeType: text('change_type', { enum: ['Standard', 'Normal', 'Emergency'] }).notNull().default('Normal'),
+  status: text('status', {
+    enum: ['Draft', 'Submitted', 'CAB Review', 'Approved', 'Scheduled', 'In Progress', 'Completed', 'Failed', 'Cancelled']
+  }).notNull().default('Draft'),
+  riskLevel: text('risk_level', { enum: ['Low', 'Medium', 'High', 'Critical'] }).notNull().default('Medium'),
+  impactLevel: text('impact_level', { enum: ['Low', 'Medium', 'High'] }).notNull().default('Medium'),
+  implementationPlan: text('implementation_plan'),
+  backoutPlan: text('backout_plan'),
+  scheduledStart: timestamp('scheduled_start'),
+  scheduledEnd: timestamp('scheduled_end'),
+  assignedAgentId: integer('assigned_agent_id').references(() => users.id, { onDelete: 'set null' }),
+  createdById: integer('created_by_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  approvedById: integer('approved_by_id').references(() => users.id, { onDelete: 'set null' }),
+  approvedAt: timestamp('approved_at'),
+  completedAt: timestamp('completed_at'),
+  createdAt: timestamp('created_at').notNull().default(sql`now()`),
+  updatedAt: timestamp('updated_at').notNull().default(sql`now()`)
+});
+
+// CAB / Change Approvals
+export const changeApprovals = pgTable('change_approvals', {
+  id: serial('id').primaryKey(),
+  changeId: integer('change_id').notNull().references(() => changes.id, { onDelete: 'cascade' }),
+  approverId: integer('approver_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  role: text('role').notNull(), // descriptive label e.g. 'CAB Member', 'IT Lead'
+  status: text('status', { enum: ['Pending', 'Approved', 'Rejected'] }).notNull().default('Pending'),
+  respondedAt: timestamp('responded_at'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').notNull().default(sql`now()`)
+});
+
+// Change ↔ Affected CIs
+export const changeAffectedCIs = pgTable('change_affected_cis', {
+  id: serial('id').primaryKey(),
+  changeId: integer('change_id').notNull().references(() => changes.id, { onDelete: 'cascade' }),
+  assetId: integer('asset_id').notNull().references(() => assets.id, { onDelete: 'cascade' }),
+  linkedAt: timestamp('linked_at').notNull().default(sql`now()`)
+});
+
+// Change freeze windows
+export const changeFreeze = pgTable('change_freeze', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  startDate: timestamp('start_date').notNull(),
+  endDate: timestamp('end_date').notNull(),
+  reason: text('reason'),
+  createdById: integer('created_by_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at').notNull().default(sql`now()`)
+});
+
+// Change ↔ Incident/Problem links
+export const changeLinks = pgTable('change_links', {
+  id: serial('id').primaryKey(),
+  changeId: integer('change_id').notNull().references(() => changes.id, { onDelete: 'cascade' }),
+  ticketId: integer('ticket_id').references(() => tickets.id, { onDelete: 'cascade' }),
+  problemId: integer('problem_id').references(() => problems.id, { onDelete: 'cascade' }),
+  linkedAt: timestamp('linked_at').notNull().default(sql`now()`)
+});
+
+// ── Type exports ───────────────────────────────────────────────────────────────
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Department = typeof departments.$inferSelect;
@@ -467,3 +672,33 @@ export type AssetLink = typeof assetLinks.$inferSelect;
 export type NewAssetLink = typeof assetLinks.$inferInsert;
 export type Customer = typeof customers.$inferSelect;
 export type NewCustomer = typeof customers.$inferInsert;
+export type EscalationRule = typeof escalationRules.$inferSelect;
+export type NewEscalationRule = typeof escalationRules.$inferInsert;
+export type CatalogItem = typeof catalogItems.$inferSelect;
+export type NewCatalogItem = typeof catalogItems.$inferInsert;
+export type KbComment = typeof kbComments.$inferSelect;
+export type NewKbComment = typeof kbComments.$inferInsert;
+export type ApprovalStep = typeof approvalSteps.$inferSelect;
+export type NewApprovalStep = typeof approvalSteps.$inferInsert;
+export type ResponseTemplate = typeof responseTemplates.$inferSelect;
+export type NewResponseTemplate = typeof responseTemplates.$inferInsert;
+export type CommentMention = typeof commentMentions.$inferSelect;
+export type NewCommentMention = typeof commentMentions.$inferInsert;
+export type Notification = typeof notifications.$inferSelect;
+export type NewNotification = typeof notifications.$inferInsert;
+export type Problem = typeof problems.$inferSelect;
+export type NewProblem = typeof problems.$inferInsert;
+export type ProblemIncident = typeof problemIncidents.$inferSelect;
+export type NewProblemIncident = typeof problemIncidents.$inferInsert;
+export type KnownError = typeof knownErrors.$inferSelect;
+export type NewKnownError = typeof knownErrors.$inferInsert;
+export type Change = typeof changes.$inferSelect;
+export type NewChange = typeof changes.$inferInsert;
+export type ChangeApproval = typeof changeApprovals.$inferSelect;
+export type NewChangeApproval = typeof changeApprovals.$inferInsert;
+export type ChangeAffectedCI = typeof changeAffectedCIs.$inferSelect;
+export type NewChangeAffectedCI = typeof changeAffectedCIs.$inferInsert;
+export type ChangeFreeze = typeof changeFreeze.$inferSelect;
+export type NewChangeFreeze = typeof changeFreeze.$inferInsert;
+export type ChangeLink = typeof changeLinks.$inferSelect;
+export type NewChangeLink = typeof changeLinks.$inferInsert;

@@ -18,6 +18,7 @@ import {
   InboxStackIcon,
   UserGroupIcon,
   UserCircleIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 
 interface NavItem {
@@ -37,6 +38,7 @@ const baseNavItems: NavItem[] = [
 
 const agentNavItems: NavItem[] = [
   { href: '/dashboard/analytics', label: 'Analytics', icon: ChartBarIcon },
+  { href: '/dashboard/analytics/incidents', label: 'Incident Analytics', icon: ExclamationTriangleIcon },
 ];
 
 const adminNavItems: NavItem[] = [
@@ -69,9 +71,13 @@ export default function DashboardNav({ userRole }: DashboardNavProps): JSX.Eleme
       {allNavItems.map((item: NavItem) => {
         const isActive =
           pathname === item.href ||
-          (item.href !== '/dashboard/admin' && pathname.startsWith(item.href + '/'));
+          (item.href !== '/dashboard/admin' &&
+            item.href !== '/dashboard/analytics' &&
+            pathname.startsWith(item.href + '/'));
         const isSubItem =
-          item.href.startsWith('/dashboard/admin/') || item.href === '/dashboard/agents';
+          item.href.startsWith('/dashboard/admin/') ||
+          item.href === '/dashboard/agents' ||
+          item.href === '/dashboard/analytics/incidents';
         const Icon = item.icon;
 
         return (
