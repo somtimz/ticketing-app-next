@@ -9,6 +9,7 @@ import {
   MagnifyingGlassIcon,
   LockClosedIcon,
   TrashIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 
 interface Change {
@@ -203,24 +204,33 @@ export default function ChangesPage() {
             <p className="text-sm text-gray-400">RFC tracking &amp; change freeze calendar</p>
           </div>
         </div>
-        {tab === 'changes' && canCreate && (
-          <button
-            onClick={() => setShowNew(true)}
-            className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+        <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard/changes/calendar"
+            className="flex items-center gap-2 border border-gray-700 hover:bg-gray-800 text-gray-300 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
           >
-            <PlusIcon className="h-4 w-4" />
-            New RFC
-          </button>
-        )}
-        {tab === 'freeze' && isAdmin && (
-          <button
-            onClick={() => setShowFreezeForm(true)}
-            className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          >
-            <LockClosedIcon className="h-4 w-4" />
-            Add Freeze Window
-          </button>
-        )}
+            <CalendarDaysIcon className="h-4 w-4" />
+            Calendar
+          </Link>
+          {tab === 'changes' && canCreate && (
+            <button
+              onClick={() => setShowNew(true)}
+              className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              <PlusIcon className="h-4 w-4" />
+              New RFC
+            </button>
+          )}
+          {tab === 'freeze' && isAdmin && (
+            <button
+              onClick={() => setShowFreezeForm(true)}
+              className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              <LockClosedIcon className="h-4 w-4" />
+              Add Freeze Window
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
