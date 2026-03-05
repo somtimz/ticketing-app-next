@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import DashboardNav from '@/components/layout/DashboardNav';
 import LogoutButton from '@/components/layout/LogoutButton';
+import NotificationBell from '@/components/NotificationBell';
 
 export default async function DashboardLayout({
   children
@@ -49,10 +50,11 @@ export default async function DashboardLayout({
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-screen">
         {/* Top bar */}
-        <header className="bg-white border-b border-gray-200 h-16 flex items-center px-6 shrink-0">
+        <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6 shrink-0">
           <span className="text-xs font-medium text-violet-700 bg-violet-50 px-2.5 py-1 rounded-full">
             {session.user?.role}
           </span>
+          <NotificationBell />
         </header>
 
         {/* Page Content */}

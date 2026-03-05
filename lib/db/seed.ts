@@ -1763,6 +1763,240 @@ After setup, download and store your **backup codes** in a safe place (e.g. a pa
   console.log(`  ✓ ${assetHistoryData.length} Asset history entries created (9 open, 2 completed)`);
 
   // ========================================
+  // RESPONSE TEMPLATES
+  // ========================================
+  console.log('Inserting response templates...');
+  const templates = [
+    {
+      title: 'Initial Response',
+      body: 'Thank you for reaching out. We have received your request and assigned it to our team. We will be in touch shortly with an update.',
+      category: 'General',
+      createdById: adminId,
+      isGlobal: true,
+    },
+    {
+      title: 'Request for More Information',
+      body: 'We need a bit more information to help resolve your issue. Could you please provide:\n\n1. Steps to reproduce the problem\n2. Any error messages you are seeing\n3. When the issue first occurred\n\nThank you for your patience.',
+      category: 'General',
+      createdById: adminId,
+      isGlobal: true,
+    },
+    {
+      title: 'Issue Resolved',
+      body: 'We are pleased to inform you that your issue has been resolved. The root cause was identified and a fix has been applied.\n\nPlease let us know if you experience any further problems.',
+      category: 'Resolution',
+      createdById: adminId,
+      isGlobal: true,
+    },
+    {
+      title: 'Password Reset Instructions',
+      body: 'To reset your password:\n\n1. Navigate to the company portal at https://portal.company.com\n2. Click "Forgot Password"\n3. Enter your company email address\n4. Follow the link sent to your email\n\nIf you continue to have issues, please reply to this ticket.',
+      category: 'Account',
+      createdById: adminId,
+      isGlobal: true,
+    },
+    {
+      title: 'VPN Troubleshooting',
+      body: 'Please try the following steps to resolve your VPN issue:\n\n1. Disconnect from VPN and reconnect\n2. Restart the VPN client application\n3. Check that your internet connection is working\n4. Restart your computer and try again\n\nIf the problem persists after these steps, please let us know.',
+      category: 'Network',
+      createdById: adminId,
+      isGlobal: true,
+    },
+    {
+      title: 'Escalation Notice',
+      body: 'This ticket has been escalated to a senior engineer due to the complexity or severity of the issue. We are actively working on a resolution and will provide an update within 2 hours.',
+      category: 'Escalation',
+      createdById: adminId,
+      isGlobal: true,
+    },
+  ];
+
+  await db.insert(schema.responseTemplates).values(templates).onConflictDoNothing();
+  console.log(`  ✓ ${templates.length} Response templates created`);
+
+  // ========================================
+  // CATALOG ITEMS
+  // ========================================
+  console.log('Inserting service catalog items...');
+  const catalogItems = [
+    {
+      title: 'New Laptop Request',
+      description: 'Request a new laptop for a new hire or replacement device.',
+      category: 'New Equipment' as const,
+      estimatedSLAHours: 120,
+      icon: '💻',
+      isActive: true,
+    },
+    {
+      title: 'Software License Request',
+      description: 'Request a license for approved business software (e.g., Adobe, Microsoft 365, Slack).',
+      category: 'Software Access' as const,
+      estimatedSLAHours: 48,
+      icon: '🔑',
+      isActive: true,
+    },
+    {
+      title: 'New User Account Setup',
+      description: 'Set up a full account for a new employee, including Active Directory, email, and core app access.',
+      category: 'Account Setup' as const,
+      estimatedSLAHours: 8,
+      icon: '👤',
+      isActive: true,
+    },
+    {
+      title: 'VPN Access Request',
+      description: 'Request VPN access for remote work. Requires manager approval.',
+      category: 'Software Access' as const,
+      estimatedSLAHours: 4,
+      icon: '🔒',
+      isActive: true,
+    },
+    {
+      title: 'Hardware Repair',
+      description: 'Submit a device for repair (laptop screen, keyboard, charger replacement, etc.).',
+      category: 'Hardware Repair' as const,
+      estimatedSLAHours: 168,
+      icon: '🔧',
+      isActive: true,
+    },
+    {
+      title: 'Mobile Device (Phone/Tablet)',
+      description: 'Request a company-issued mobile phone or tablet for business use.',
+      category: 'New Equipment' as const,
+      estimatedSLAHours: 168,
+      icon: '📱',
+      isActive: true,
+    },
+    {
+      title: 'Shared Mailbox Access',
+      description: 'Request access to a shared mailbox or distribution list.',
+      category: 'Account Setup' as const,
+      estimatedSLAHours: 8,
+      icon: '📬',
+      isActive: true,
+    },
+  ];
+
+  await db.insert(schema.catalogItems).values(catalogItems).onConflictDoNothing();
+  console.log(`  ✓ ${catalogItems.length} Catalog items created`);
+
+  // ========================================
+  // ESCALATION RULES
+  // ========================================
+  console.log('Inserting escalation rules...');
+  const escalationRules = [
+    {
+      name: 'P1 Unassigned after 15 minutes',
+      priority: 'P1' as const,
+      minutesBeforeBreach: 15,
+      action: 'notify_teamlead' as const,
+      isActive: true,
+    },
+    {
+      name: 'P1 SLA breach — notify admin',
+      priority: 'P1' as const,
+      minutesBeforeBreach: -240,
+      action: 'notify_admin' as const,
+      isActive: true,
+    },
+    {
+      name: 'P2 Unresolved after 24 hours',
+      priority: 'P2' as const,
+      minutesBeforeBreach: -1440,
+      action: 'notify_teamlead' as const,
+      isActive: true,
+    },
+    {
+      name: 'P3 Unresolved after 3 days',
+      priority: 'P3' as const,
+      minutesBeforeBreach: -4320,
+      action: 'reassign' as const,
+      isActive: true,
+    },
+  ];
+
+  await db.insert(schema.escalationRules).values(escalationRules).onConflictDoNothing();
+  console.log(`  ✓ ${escalationRules.length} Escalation rules created`);
+
+  // ========================================
+  // PROBLEMS
+  // ========================================
+  console.log('Inserting problems...');
+  const agentUserId = agent1Id;
+  const problems = await db.insert(schema.problems).values([
+    {
+      problemNumber: 'PRB-0001',
+      title: 'Intermittent VPN disconnections affecting remote workers',
+      description: 'Multiple employees have reported frequent VPN drops when connecting from home networks. The issue appears to be related to the VPN concentrator load balancer.',
+      status: 'Under Investigation' as const,
+      priority: 'P2' as const,
+      assignedAgentId: agentUserId,
+      createdById: adminId,
+      workaround: 'Use the secondary VPN endpoint (vpn2.company.com) as a workaround.',
+    },
+    {
+      problemNumber: 'PRB-0002',
+      title: 'Email delivery delays during peak hours',
+      description: 'Outbound email delivery is experiencing 15-30 minute delays between 9am-11am and 2pm-4pm. Root cause appears to be mail relay queue saturation.',
+      status: 'Known Error' as const,
+      priority: 'P3' as const,
+      assignedAgentId: agentUserId,
+      createdById: adminId,
+      rootCause: 'Mail relay queue becomes saturated due to bulk newsletter sends coinciding with peak business hours.',
+      workaround: 'Schedule bulk emails outside peak hours (before 8am or after 5pm).',
+    },
+  ]).returning({ id: schema.problems.id });
+  console.log(`  ✓ ${problems.length} Problems created`);
+
+  // ========================================
+  // CHANGES
+  // ========================================
+  console.log('Inserting change requests...');
+  const changes = await db.insert(schema.changes).values([
+    {
+      changeNumber: 'CHG-0001',
+      title: 'Upgrade VPN concentrator firmware to v7.4.2',
+      description: 'Upgrade the primary VPN concentrator from firmware v7.2.1 to v7.4.2 to resolve known stability issues and apply security patches.',
+      changeType: 'Normal' as const,
+      status: 'Approved' as const,
+      riskLevel: 'Medium' as const,
+      impactLevel: 'High' as const,
+      implementationPlan: '1. Schedule maintenance window (Saturday 2am-4am)\n2. Take snapshot of current config\n3. Upload v7.4.2 firmware\n4. Apply firmware and reboot\n5. Verify VPN connectivity for all regions\n6. Monitor for 30 minutes',
+      backoutPlan: 'Roll back to v7.2.1 using saved config snapshot. Estimated rollback time: 15 minutes.',
+      scheduledStart: new Date('2026-03-08T02:00:00Z'),
+      scheduledEnd: new Date('2026-03-08T04:00:00Z'),
+      createdById: adminId,
+      assignedAgentId: agentUserId,
+    },
+    {
+      changeNumber: 'CHG-0002',
+      title: 'Migrate file server FS01 to new hardware',
+      description: 'Migrate all shares from aging file server FS01 (2015 hardware) to new NAS appliance FS01-NEW. Includes Robocopy delta sync and DFS namespace update.',
+      changeType: 'Normal' as const,
+      status: 'Draft' as const,
+      riskLevel: 'High' as const,
+      impactLevel: 'High' as const,
+      implementationPlan: '1. Pre-stage data with Robocopy\n2. Schedule maintenance window\n3. Final Robocopy delta sync\n4. Update DFS namespace to point to FS01-NEW\n5. Verify access from sample workstations',
+      backoutPlan: 'Revert DFS namespace to FS01. All data preserved on both systems during transition.',
+      createdById: adminId,
+    },
+    {
+      changeNumber: 'CHG-0003',
+      title: 'Deploy new password complexity policy via Group Policy',
+      description: 'Update GPO to enforce minimum 12-character passwords with complexity requirements per updated security policy.',
+      changeType: 'Standard' as const,
+      status: 'Completed' as const,
+      riskLevel: 'Low' as const,
+      impactLevel: 'Medium' as const,
+      implementationPlan: '1. Update GPO in test OU\n2. Validate with test accounts\n3. Roll out to all OUs\n4. Force GP update',
+      backoutPlan: 'Revert GPO to previous version (saved as GPO-Password-v1).',
+      createdById: adminId,
+      completedAt: new Date('2026-02-15'),
+    },
+  ]).returning({ id: schema.changes.id });
+  console.log(`  ✓ ${changes.length} Change requests created`);
+
+  // ========================================
   // SUMMARY
   // ========================================
 
