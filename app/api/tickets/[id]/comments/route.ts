@@ -7,6 +7,7 @@ import { eq, asc } from 'drizzle-orm';
 import { requireAuth, handleAPIError } from '@/lib/api-error';
 import { hasRole } from '@/lib/rbac';
 import { sendTicketCommentEmail } from '@/lib/email';
+import { parseNotificationPreferences } from '@/app/api/users/me/preferences/route';
 
 const addCommentSchema = z.object({
   body: z.string().min(1).max(5000),
@@ -129,11 +130,14 @@ export async function POST(
           }
         }
 
-        // Notify ticket submitter if they have email notifications enabled
+        // Notify ticket submitter using granular preferences
         if (fullTicket.createdBy && String(fullTicket.createdBy) !== session!.user.id) {
           const submitter = await db.query.users.findFirst({ where: eq(users.id, fullTicket.createdBy) }) as any;
-          if (submitter?.email && submitter?.emailNotificationsEnabled) {
-            void sendTicketCommentEmail(submitter.email, fullTicket.ticketNumber, fullTicket.title, commenterName, validated.body, ticketId);
+          if (submitter?.email) {
+            const prefs = parseNotificationPreferences(submitter.notificationPreferences, submitter.emailNotificationsEnabled);
+            if (prefs.commentAdded) {
+              void sendTicketCommentEmail(submitter.email, fullTicket.ticketNumber, fullTicket.title, commenterName, validated.body, ticketId);
+            }
           }
         }
       }

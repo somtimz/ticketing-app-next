@@ -30,6 +30,7 @@ export const users = pgTable('users', {
   location: text('location'),
   isActive: boolean('is_active').notNull().default(true),
   emailNotificationsEnabled: boolean('email_notifications_enabled').notNull().default(true),
+  notificationPreferences: text('notification_preferences'), // JSON: {statusChange, commentAdded, resolved}
   createdAt: timestamp('created_at')
     .notNull()
     .default(sql`now()`),
@@ -124,6 +125,27 @@ export const categories: any = pgTable('categories', {
     .default(sql`now()`)
 });
 
+// Service Request Types (sub-types per category shown in the portal)
+export const serviceRequestTypes = pgTable('service_request_types', {
+  id: serial('id').primaryKey(),
+  categoryId: integer('category_id').references(() => categories.id, {
+    onDelete: 'cascade'
+  }),
+  name: text('name').notNull(),
+  description: text('description'),
+  defaultImpact: text('default_impact', { enum: ['Low', 'Medium', 'High'] }).notNull().default('Medium'),
+  defaultUrgency: text('default_urgency', { enum: ['Low', 'Medium', 'High'] }).notNull().default('Medium'),
+  formFields: text('form_fields'), // JSON: [{name, label, type, required, options}]
+  isActive: boolean('is_active').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at')
+    .notNull()
+    .default(sql`now()`),
+  updatedAt: timestamp('updated_at')
+    .notNull()
+    .default(sql`now()`)
+});
+
 // SLA Policies table
 export const slaPolicies = pgTable('sla_policies', {
   id: serial('id').primaryKey(),
@@ -184,6 +206,21 @@ export const tickets: any = pgTable('tickets', {
     .notNull()
     .default(sql`now()`),
   updatedAt: timestamp('updated_at')
+    .notNull()
+    .default(sql`now()`)
+});
+
+// Ticket satisfaction surveys (sent after close)
+export const ticketSatisfactionSurveys = pgTable('ticket_satisfaction_surveys', {
+  id: serial('id').primaryKey(),
+  ticketId: integer('ticket_id')
+    .notNull()
+    .references(() => tickets.id, { onDelete: 'cascade' }),
+  token: text('token').notNull().unique(), // UUID for email link
+  rating: integer('rating'), // 1–5, null until submitted
+  feedback: text('feedback'), // Optional text
+  submittedAt: timestamp('submitted_at'),
+  createdAt: timestamp('created_at')
     .notNull()
     .default(sql`now()`)
 });
@@ -329,10 +366,14 @@ export type Caller = typeof callers.$inferSelect;
 export type NewCaller = typeof callers.$inferInsert;
 export type Category = typeof categories.$inferSelect;
 export type NewCategory = typeof categories.$inferInsert;
+export type ServiceRequestType = typeof serviceRequestTypes.$inferSelect;
+export type NewServiceRequestType = typeof serviceRequestTypes.$inferInsert;
 export type SLAPolicy = typeof slaPolicies.$inferSelect;
 export type NewSLAPolicy = typeof slaPolicies.$inferInsert;
 export type Ticket = typeof tickets.$inferSelect;
 export type NewTicket = typeof tickets.$inferInsert;
+export type TicketSatisfactionSurvey = typeof ticketSatisfactionSurveys.$inferSelect;
+export type NewTicketSatisfactionSurvey = typeof ticketSatisfactionSurveys.$inferInsert;
 export type Call = typeof calls.$inferSelect;
 export type NewCall = typeof calls.$inferInsert;
 export type TicketStatusHistory = typeof ticketStatusHistory.$inferSelect;

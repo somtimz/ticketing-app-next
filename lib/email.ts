@@ -499,6 +499,56 @@ export async function sendTicketCommentEmail(
 }
 
 /**
+ * Email sent with a satisfaction survey link after ticket is closed
+ */
+export async function sendSatisfactionSurveyEmail(
+  to: string,
+  ticketNumber: string,
+  title: string,
+  surveyToken: string
+): Promise<boolean> {
+  const surveyUrl = `${APP_URL}/portal/survey/${surveyToken}`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+          .stars { font-size: 32px; letter-spacing: 8px; text-align: center; margin: 20px 0; }
+          .button { display: inline-block; background: #7c3aed; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 10px; }
+          .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <p style="margin: 0; opacity: 0.9; font-size: 14px;">Ticket Closed</p>
+            <p style="font-size: 22px; font-weight: bold; margin: 5px 0 0;">${ticketNumber}</p>
+          </div>
+          <div class="content">
+            <h2 style="margin-top: 0;">How did we do?</h2>
+            <p>Your support request <strong>${title}</strong> has been resolved and closed. We&apos;d love to hear your feedback — it only takes a moment.</p>
+            <div class="stars">⭐⭐⭐⭐⭐</div>
+            <div style="text-align: center;">
+              <a href="${surveyUrl}" class="button">Rate this experience</a>
+            </div>
+            <div class="footer">
+              <p>This is an automated message from IT Help Desk. You can also <a href="${surveyUrl}">open the survey</a> directly.</p>
+            </div>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  return sendEmail(to, `How did we do? — ${ticketNumber}`, html);
+}
+
+/**
  * Helper function to get SLA text for priority
  */
 function getSlaText(priority: string): string {

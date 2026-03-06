@@ -37,6 +37,7 @@ const adminNavItems: NavItem[] = [
   { href: '/dashboard/admin', label: 'Administration', icon: Cog6ToothIcon },
   { href: '/dashboard/admin/departments', label: 'Departments', icon: BuildingOffice2Icon },
   { href: '/dashboard/admin/categories', label: 'Categories', icon: TagIcon },
+  { href: '/dashboard/admin/request-types', label: 'Request Types', icon: ClipboardDocumentListIcon },
   { href: '/dashboard/admin/sla', label: 'SLA Policies', icon: ClockIcon },
   { href: '/dashboard/agents', label: 'Manage Users', icon: UsersIcon },
 ];

@@ -11,10 +11,20 @@ interface Category {
   description: string | null;
 }
 
+interface RequestType {
+  id: number;
+  name: string;
+  description: string | null;
+  defaultImpact: string;
+  defaultUrgency: string;
+}
+
 export default function NewPortalTicketPage() {
   const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
+  const [requestTypes, setRequestTypes] = useState<RequestType[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [selectedTypeId, setSelectedTypeId] = useState<number | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,10 +39,35 @@ export default function NewPortalTicketPage() {
       .catch(() => {});
   }, []);
 
+  // Load request types when category changes
+  useEffect(() => {
+    if (!selectedCategoryId) {
+      setRequestTypes([]);
+      setSelectedTypeId(null);
+      return;
+    }
+    void fetch(`/api/categories/${selectedCategoryId}/request-types`)
+      .then(r => r.json())
+      .then((d: { requestTypes: RequestType[] }) => {
+        setRequestTypes(d.requestTypes ?? []);
+        setSelectedTypeId(null);
+      })
+      .catch(() => {});
+  }, [selectedCategoryId]);
+
+  const selectedType = requestTypes.find(t => t.id === selectedTypeId);
+
+  const handleCategorySelect = (id: number) => {
+    setSelectedCategoryId(selectedCategoryId === id ? null : id);
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError('');
+
+    const impact = selectedType?.defaultImpact ?? 'Medium';
+    const urgency = selectedType?.defaultUrgency ?? 'Medium';
 
     try {
       const res = await fetch('/api/portal/tickets', {
@@ -42,8 +77,8 @@ export default function NewPortalTicketPage() {
           title,
           description,
           categoryId: selectedCategoryId ?? undefined,
-          impact: 'Medium',
-          urgency: 'Medium'
+          impact,
+          urgency
         })
       });
 
@@ -86,7 +121,7 @@ export default function NewPortalTicketPage() {
                 <button
                   key={cat.id}
                   type="button"
-                  onClick={() => setSelectedCategoryId(selectedCategoryId === cat.id ? null : cat.id)}
+                  onClick={() => handleCategorySelect(cat.id)}
                   className={`p-3 rounded-lg border text-left text-sm transition-colors ${
                     selectedCategoryId === cat.id
                       ? 'border-violet-600 bg-violet-50 text-violet-700 font-medium'
@@ -98,6 +133,40 @@ export default function NewPortalTicketPage() {
                     <p className="mt-0.5 text-xs text-gray-400 line-clamp-1">{cat.description}</p>
                   )}
                 </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Request type selection (shown when category has types) */}
+        {requestTypes.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              What type of request is this?
+            </label>
+            <div className="space-y-2">
+              {requestTypes.map(type => (
+                <label
+                  key={type.id}
+                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    selectedTypeId === type.id
+                      ? 'border-violet-600 bg-violet-50'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="requestType"
+                    value={type.id}
+                    checked={selectedTypeId === type.id}
+                    onChange={() => setSelectedTypeId(type.id)}
+                    className="mt-0.5 text-violet-600"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{type.name}</p>
+                    {type.description && <p className="text-xs text-gray-500">{type.description}</p>}
+                  </div>
+                </label>
               ))}
             </div>
           </div>

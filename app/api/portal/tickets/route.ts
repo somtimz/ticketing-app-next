@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { tickets, callers, categories, users, employees } from '@/lib/db/schema';
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, ilike, or } from 'drizzle-orm';
 import { portalCreateTicketSchema } from '@/lib/validators';
 import { calculatePriority, calculateSLADueDates } from '@/lib/sla';
 import { sendTicketCreatedEmail, sendTicketAssignedEmail } from '@/lib/email';
@@ -19,11 +19,17 @@ export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
     const status = searchParams.get('status');
+    const q = searchParams.get('q')?.trim();
     const userId = parseInt(session.user.id, 10);
 
-    const whereConditions = status
-      ? and(eq(tickets.createdBy, userId), eq(tickets.status, status as any))
-      : eq(tickets.createdBy, userId);
+    const baseCondition = eq(tickets.createdBy, userId);
+    const statusCondition = status ? eq(tickets.status, status as any) : null;
+    const searchCondition = q
+      ? or(ilike(tickets.title, `%${q}%`), ilike(tickets.description, `%${q}%`))
+      : null;
+
+    const conditions = [baseCondition, statusCondition, searchCondition].filter(Boolean);
+    const whereConditions = conditions.length === 1 ? conditions[0] : and(...(conditions as any[]));
 
     const result = await db
       .select({

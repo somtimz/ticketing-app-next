@@ -75,14 +75,9 @@ export const portalCreateTicketSchema = z.object({
   urgency: z.enum(['Low', 'Medium', 'High']).default('Medium')
 });
 
-export const updateUserPreferencesSchema = z.object({
-  emailNotificationsEnabled: z.boolean()
-});
-
 // Type exports from schemas
 export type CreateTicketInput = z.infer<typeof createTicketSchema>;
 export type PortalCreateTicketInput = z.infer<typeof portalCreateTicketSchema>;
-export type UpdateUserPreferencesInput = z.infer<typeof updateUserPreferencesSchema>;
 export type UpdateTicketStatusInput = z.infer<typeof updateTicketStatusSchema>;
 export type ReassignTicketInput = z.infer<typeof reassignTicketSchema>;
 export type ResolveTicketInput = z.infer<typeof resolveTicketSchema>;

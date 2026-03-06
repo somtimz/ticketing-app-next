@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import TicketStatusBadge from '@/components/portal/TicketStatusBadge';
 
@@ -36,28 +36,38 @@ const FILTER_TABS = [
   { label: 'Closed', value: 'Closed' }
 ];
 
+const ACTIVE_STATUSES = ['New', 'Assigned', 'InProgress', 'Pending'];
+
 export default function PortalTicketsPage() {
   const [tickets, setTickets] = useState<PortalTicket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('active');
+  const [query, setQuery] = useState('');
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    const fetchTickets = async () => {
-      setIsLoading(true);
-      try {
-        const res = await fetch('/api/portal/tickets');
-        const data = await res.json() as { tickets: PortalTicket[] };
-        setTickets(data.tickets ?? []);
-      } catch {
-        // ignore
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    void fetchTickets();
-  }, []);
+  const fetchTickets = async (q = '') => {
+    setIsLoading(true);
+    try {
+      const url = q ? `/api/portal/tickets?q=${encodeURIComponent(q)}` : '/api/portal/tickets';
+      const res = await fetch(url);
+      const data = await res.json() as { tickets: PortalTicket[] };
+      setTickets(data.tickets ?? []);
+    } catch {
+      // ignore
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  const ACTIVE_STATUSES = ['New', 'Assigned', 'InProgress', 'Pending'];
+  useEffect(() => { void fetchTickets(); }, []);
+
+  const handleSearch = (value: string) => {
+    setQuery(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      void fetchTickets(value);
+    }, 400);
+  };
 
   const filtered = tickets.filter(t => {
     if (filter === 'active') return ACTIVE_STATUSES.includes(t.status);
@@ -83,22 +93,38 @@ export default function PortalTicketsPage() {
         </Link>
       </div>
 
-      {/* Filter tabs */}
-      <div className="flex gap-1 border-b border-gray-200">
-        {FILTER_TABS.map(tab => (
-          <button
-            key={tab.value}
-            onClick={() => setFilter(tab.value)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              filter === tab.value
-                ? 'border-violet-600 text-violet-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* Search */}
+      <div className="relative">
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+        </svg>
+        <input
+          type="search"
+          value={query}
+          onChange={e => handleSearch(e.target.value)}
+          placeholder="Search your requests..."
+          className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-violet-500 focus:border-violet-500"
+        />
       </div>
+
+      {/* Filter tabs (hidden during search) */}
+      {!query && (
+        <div className="flex gap-1 border-b border-gray-200">
+          {FILTER_TABS.map(tab => (
+            <button
+              key={tab.value}
+              onClick={() => setFilter(tab.value)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                filter === tab.value
+                  ? 'border-violet-600 text-violet-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Ticket list */}
       <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100">
@@ -106,10 +132,14 @@ export default function PortalTicketsPage() {
           <div className="p-8 text-center text-sm text-gray-500">Loading...</div>
         ) : filtered.length === 0 ? (
           <div className="p-8 text-center">
-            <p className="text-sm text-gray-500">No requests found.</p>
-            <Link href="/portal/tickets/new" className="mt-3 inline-block text-sm text-violet-600 hover:underline">
-              Submit your first request
-            </Link>
+            <p className="text-sm text-gray-500">
+              {query ? `No requests found for "${query}"` : 'No requests found.'}
+            </p>
+            {!query && (
+              <Link href="/portal/tickets/new" className="mt-3 inline-block text-sm text-violet-600 hover:underline">
+                Submit your first request
+              </Link>
+            )}
           </div>
         ) : (
           filtered.map(ticket => (
