@@ -88,42 +88,39 @@ export async function PUT(
       .where(eq(tickets.id, ticketId))
       .limit(1) as any[];
 
-    if (fullTicket?.createdBy) {
+    if (fullTicket?.createdBy && fullTicket.submitterEmail) {
       const submitter = {
-        email: fullTicket.submitterEmail,
+        email: fullTicket.submitterEmail as string,
         emailNotificationsEnabled: fullTicket.submitterNotifEnabled,
         notificationPreferences: fullTicket.submitterNotifPrefs,
       };
-      if (submitter?.email) {
-      if (submitter?.email) {
-        const prefs = parseNotificationPreferences(
-          submitter.notificationPreferences,
-          submitter.emailNotificationsEnabled
+      const prefs = parseNotificationPreferences(
+        submitter.notificationPreferences,
+        submitter.emailNotificationsEnabled
+      );
+
+      if (prefs.statusChange) {
+        void sendTicketStatusUpdateEmail(
+          submitter.email,
+          fullTicket.ticketNumber,
+          fullTicket.title,
+          currentTicket[0].status,
+          validatedData.status,
+          validatedData.notes || null,
+          ticketId
         );
+      }
 
-        if (prefs.statusChange) {
-          void sendTicketStatusUpdateEmail(
-            submitter.email,
-            fullTicket.ticketNumber,
-            fullTicket.title,
-            currentTicket[0].status,
-            validatedData.status,
-            validatedData.notes || null,
-            ticketId
-          );
-        }
-
-        // When ticket is closed, create a satisfaction survey and email it
-        if (validatedData.status === 'Closed') {
-          const token = randomUUID();
-          await db.insert(ticketSatisfactionSurveys).values({ ticketId, token });
-          void sendSatisfactionSurveyEmail(
-            submitter.email,
-            fullTicket.ticketNumber,
-            fullTicket.title,
-            token
-          );
-        }
+      // When ticket is closed, create a satisfaction survey and email it
+      if (validatedData.status === 'Closed') {
+        const token = randomUUID();
+        await db.insert(ticketSatisfactionSurveys).values({ ticketId, token });
+        void sendSatisfactionSurveyEmail(
+          submitter.email,
+          fullTicket.ticketNumber,
+          fullTicket.title,
+          token
+        );
       }
     }
 
