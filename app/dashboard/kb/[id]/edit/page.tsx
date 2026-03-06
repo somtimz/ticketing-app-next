@@ -40,7 +40,11 @@ export default function EditKBArticlePage(): JSX.Element {
   const isAgent = userRole === 'Agent' || userRole === 'TeamLead' || userRole === 'Admin';
 
   // Load article + categories in parallel
+  // Only run once session is resolved — prevents a double-fetch race where
+  // status transitioning 'loading' → 'authenticated' would re-run the effect
+  // and overwrite input the user has already typed.
   useEffect(() => {
+    if (status === 'loading') return;
     void (async () => {
       try {
         const [articleRes, catRes] = await Promise.all([
@@ -62,11 +66,9 @@ export default function EditKBArticlePage(): JSX.Element {
         setCategories(catData.categories ?? []);
 
         // Auth check: must be agent and (author or admin)
-        if (status === 'authenticated') {
-          if (!isAgent || (!isAdmin && String(article.createdBy) !== userId)) {
-            router.replace(`/dashboard/kb/${id}`);
-            return;
-          }
+        if (!isAgent || (!isAdmin && String(article.createdBy) !== userId)) {
+          router.replace(`/dashboard/kb/${id}`);
+          return;
         }
 
         setTitle(article.title);
