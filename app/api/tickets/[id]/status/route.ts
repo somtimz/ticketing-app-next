@@ -5,28 +5,22 @@ import { tickets, ticketStatusHistory } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { updateTicketStatusSchema, type UpdateTicketStatusInput } from '@/lib/validators';
 import { adjustSLAForHoldTime, calcCurrentHoldMinutes } from '@/lib/sla';
-import type { ApiErrorResponse } from '@/types';
+import { requireRole, handleAPIError } from '@/lib/api-error';
 
-// PUT /api/tickets/[id]/status - Update ticket status
+// PUT /api/tickets/[id]/status - Update ticket status (Agent+ only)
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-
-  if (!session) {
-    return NextResponse.json<ApiErrorResponse>(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    );
-  }
-
   try {
+    const session = await auth();
+    requireRole(session, 'Agent');
+
     const { id } = await params;
     const ticketId = Number.parseInt(id, 10);
 
     if (Number.isNaN(ticketId)) {
-      return NextResponse.json<ApiErrorResponse>(
+      return NextResponse.json(
         { error: 'Invalid ticket ID' },
         { status: 400 }
       );
@@ -51,7 +45,7 @@ export async function PUT(
       .limit(1);
 
     if (currentTickets.length === 0) {
-      return NextResponse.json<ApiErrorResponse>(
+      return NextResponse.json(
         { error: 'Ticket not found' },
         { status: 404 }
       );
@@ -102,7 +96,7 @@ export async function PUT(
       ticketId,
       fromStatus: currentTicket.status,
       toStatus: validatedData.status,
-      changedBy: Number.parseInt(session.user.id, 10),
+      changedBy: Number.parseInt(session!.user.id, 10),
       notes: validatedData.notes || null
     });
 
@@ -111,20 +105,6 @@ export async function PUT(
       status: validatedData.status
     });
   } catch (error) {
-    if (error instanceof Error && 'name' in error && error.name === 'ZodError') {
-      return NextResponse.json<ApiErrorResponse>(
-        {
-          error: 'Validation error',
-          details: error
-        },
-        { status: 400 }
-      );
-    }
-
-    console.error('Error updating ticket status:', error);
-    return NextResponse.json<ApiErrorResponse>(
-      { error: 'Failed to update ticket status' },
-      { status: 500 }
-    );
+    return handleAPIError(error);
   }
 }

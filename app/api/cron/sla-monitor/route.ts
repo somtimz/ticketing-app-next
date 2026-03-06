@@ -18,18 +18,24 @@ import { auth } from '@/lib/auth';
 const BREACH_NOTIFY_COOLDOWN_MS = 4 * 60 * 60 * 1000;
 
 /**
- * Verify cron secret to prevent unauthorized access
+ * Verify cron secret to prevent unauthorized access.
+ * Fails closed: if CRON_SECRET is not set in non-dev environments the
+ * request is rejected to avoid the "Bearer undefined" bypass.
  */
 function verifyCronSecret(req: NextRequest): boolean {
-  const authHeader = req.headers.get('authorization');
-  const expectedAuth = `Bearer ${process.env.CRON_SECRET}`;
-
-  // In development, allow access without secret
+  // In development, allow unauthenticated access when no secret is configured
   if (process.env.NODE_ENV === 'development' && !process.env.CRON_SECRET) {
     return true;
   }
 
-  return authHeader === expectedAuth;
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    // CRON_SECRET is required in non-dev environments; fail closed
+    return false;
+  }
+
+  const authHeader = req.headers.get('authorization');
+  return authHeader === `Bearer ${cronSecret}`;
 }
 
 /**
@@ -65,15 +71,8 @@ function shouldSendWarning(createdAt: Date, dueDate: Date, now: Date): boolean {
 }
 
 // GET /api/cron/sla-monitor - Check for SLA breaches and warnings
-export async function GET(req: NextRequest) {
-  // Verify cron secret
-  if (!verifyCronSecret(req)) {
-    return NextResponse.json(
-      { error: 'Unauthorized', message: 'Invalid cron secret' },
-      { status: 401 }
-    );
-  }
-
+/** Core SLA-monitoring logic shared by both the cron GET and the manual POST trigger. */
+async function runSlaMonitor(): Promise<NextResponse> {
   const now = new Date();
   const results = {
     breaches: { firstResponse: 0, resolution: 0 },
@@ -294,8 +293,20 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/cron/sla-monitor - Manual trigger for testing (requires auth)
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
+  // Verify cron secret
+  if (!verifyCronSecret(req)) {
+    return NextResponse.json(
+      { error: 'Unauthorized', message: 'Invalid cron secret' },
+      { status: 401 }
+    );
+  }
+
+  return runSlaMonitor();
+}
+
+// POST /api/cron/sla-monitor - Manual trigger (TeamLead+ only; no cron secret needed)
+export async function POST(_req: NextRequest) {
   const session = await auth();
   requireAuth(session);
 
@@ -308,6 +319,5 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Call the GET handler
-  return GET(req);
+  return runSlaMonitor();
 }
