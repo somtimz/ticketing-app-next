@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { UserRole } from '@/types';
@@ -25,7 +26,9 @@ import {
   DocumentTextIcon,
   ArrowTrendingUpIcon,
   HomeIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
+import GlobalSearch from '@/components/GlobalSearch';
 
 interface NavItem {
   href: string;
@@ -70,6 +73,8 @@ interface DashboardNavProps {
 
 export default function DashboardNav({ userRole }: DashboardNavProps): JSX.Element {
   const pathname = usePathname();
+  const [searchOpen, setSearchOpen] = useState(false);
+
   const isAdmin = userRole === 'Admin';
   const isAgentOrAbove = userRole === 'Agent' || userRole === 'TeamLead' || userRole === 'Admin';
 
@@ -86,32 +91,68 @@ export default function DashboardNav({ userRole }: DashboardNavProps): JSX.Eleme
     '/dashboard/home',
   ]);
 
-  return (
-    <nav className="p-3 space-y-0.5">
-      {allNavItems.map((item: NavItem) => {
-        const isActive =
-          pathname === item.href ||
-          (!exactOnlyPaths.has(item.href) && pathname.startsWith(item.href + '/'));
-        const isSubItem = item.subItem ?? false;
-        const Icon = item.icon;
+  // Global Cmd+K / Ctrl+K shortcut
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(open => !open);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-              isSubItem ? 'pl-7 text-xs' : ''
-            } ${
-              isActive
-                ? 'bg-violet-600 text-white'
-                : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-            }`}
-          >
-            <Icon className={`shrink-0 ${isSubItem ? 'h-4 w-4' : 'h-5 w-5'}`} />
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
+  // Close search on route change
+  useEffect(() => {
+    setSearchOpen(false);
+  }, [pathname]);
+
+  return (
+    <>
+      <GlobalSearch isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+
+      <nav className="p-3 space-y-0.5">
+        {/* Search button */}
+        <button
+          onClick={() => setSearchOpen(true)}
+          className="w-full flex items-center gap-3 px-3 py-2 mb-2 rounded-lg text-sm font-medium text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
+        >
+          <MagnifyingGlassIcon className="h-5 w-5 shrink-0" />
+          <span className="flex-1 text-left">Search…</span>
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-gray-700 bg-gray-800 px-1.5 py-0.5 text-[10px] font-mono text-gray-500">
+            <span>⌘</span><span>K</span>
+          </kbd>
+        </button>
+
+        {/* Divider */}
+        <div className="border-t border-gray-800 mb-2" />
+
+        {allNavItems.map((item: NavItem) => {
+          const isActive =
+            pathname === item.href ||
+            (!exactOnlyPaths.has(item.href) && pathname.startsWith(item.href + '/'));
+          const isSubItem = item.subItem ?? false;
+          const Icon = item.icon;
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                isSubItem ? 'pl-7 text-xs' : ''
+              } ${
+                isActive
+                  ? 'bg-violet-600 text-white'
+                  : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+              }`}
+            >
+              <Icon className={`shrink-0 ${isSubItem ? 'h-4 w-4' : 'h-5 w-5'}`} />
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+    </>
   );
 }
