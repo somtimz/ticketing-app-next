@@ -23,13 +23,12 @@ export async function GET(req: NextRequest) {
     const userId = parseInt(session.user.id, 10);
 
     const baseCondition = eq(tickets.createdBy, userId);
-    const statusCondition = status ? eq(tickets.status, status as any) : null;
+    const statusCondition = status ? eq(tickets.status, status as any) : undefined;
     const searchCondition = q
       ? or(ilike(tickets.title, `%${q}%`), ilike(tickets.description, `%${q}%`))
-      : null;
+      : undefined;
 
-    const conditions = [baseCondition, statusCondition, searchCondition].filter(Boolean);
-    const whereConditions = conditions.length === 1 ? conditions[0] : and(...(conditions as any[]));
+    const whereConditions = and(baseCondition, statusCondition, searchCondition);
 
     const result = await db
       .select({
