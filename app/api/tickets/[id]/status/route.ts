@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { tickets, ticketStatusHistory } from '@/lib/db/schema';
+import { tickets, ticketStatusHistory, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { updateTicketStatusSchema, type UpdateTicketStatusInput } from '@/lib/validators';
+import { sendTicketStatusUpdateEmail } from '@/lib/email';
 import type { ApiErrorResponse } from '@/types';
 
 // PUT /api/tickets/[id]/status - Update ticket status
@@ -69,6 +70,23 @@ export async function PUT(
       changedBy: Number.parseInt(session.user.id, 10),
       notes: validatedData.notes || null
     });
+
+    // Notify ticket submitter if they have email notifications enabled
+    const fullTicket = await db.query.tickets.findFirst({ where: eq(tickets.id, ticketId) }) as any;
+    if (fullTicket?.createdBy) {
+      const submitter = await db.query.users.findFirst({ where: eq(users.id, fullTicket.createdBy) }) as any;
+      if (submitter?.email && submitter?.emailNotificationsEnabled) {
+        void sendTicketStatusUpdateEmail(
+          submitter.email,
+          fullTicket.ticketNumber,
+          fullTicket.title,
+          currentTicket[0].status,
+          validatedData.status,
+          validatedData.notes || null,
+          ticketId
+        );
+      }
+    }
 
     return NextResponse.json({
       success: true,

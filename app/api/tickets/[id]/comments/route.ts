@@ -129,12 +129,11 @@ export async function POST(
           }
         }
 
-        // Notify caller if they have an email and are not the commenter
-        if (fullTicket.callerId) {
-          const caller = await db.select({ email: callers.email }).from(callers).where(eq(callers.id, fullTicket.callerId)).limit(1);
-          const callerEmail = caller[0]?.email;
-          if (callerEmail) {
-            void sendTicketCommentEmail(callerEmail, fullTicket.ticketNumber, fullTicket.title, commenterName, validated.body, ticketId);
+        // Notify ticket submitter if they have email notifications enabled
+        if (fullTicket.createdBy && String(fullTicket.createdBy) !== session!.user.id) {
+          const submitter = await db.query.users.findFirst({ where: eq(users.id, fullTicket.createdBy) }) as any;
+          if (submitter?.email && submitter?.emailNotificationsEnabled) {
+            void sendTicketCommentEmail(submitter.email, fullTicket.ticketNumber, fullTicket.title, commenterName, validated.body, ticketId);
           }
         }
       }

@@ -27,7 +27,15 @@ export default function LoginPage(): JSX.Element {
       if (result?.error) {
         setError('Invalid email or password');
       } else {
-        router.push('/dashboard/issue-logging');
+        // Fetch session to determine role-based redirect
+        const sessionRes = await fetch('/api/auth/session');
+        const sessionData = await sessionRes.json() as { user?: { role?: string } };
+        const role = sessionData?.user?.role;
+        if (role === 'Employee') {
+          router.push('/portal');
+        } else {
+          router.push('/dashboard/issue-logging');
+        }
         router.refresh();
       }
     } catch {

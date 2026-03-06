@@ -66,8 +66,23 @@ export const updateKBArticleSchema = createKBArticleSchema.partial();
 export type CreateKBArticleInput = z.infer<typeof createKBArticleSchema>;
 export type UpdateKBArticleInput = z.infer<typeof updateKBArticleSchema>;
 
+// Portal ticket creation schema (caller info derived from session)
+export const portalCreateTicketSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(200, 'Title is too long'),
+  description: z.string().min(1, 'Description is required').max(5000, 'Description is too long'),
+  categoryId: z.number().int().optional(),
+  impact: z.enum(['Low', 'Medium', 'High']).default('Medium'),
+  urgency: z.enum(['Low', 'Medium', 'High']).default('Medium')
+});
+
+export const updateUserPreferencesSchema = z.object({
+  emailNotificationsEnabled: z.boolean()
+});
+
 // Type exports from schemas
 export type CreateTicketInput = z.infer<typeof createTicketSchema>;
+export type PortalCreateTicketInput = z.infer<typeof portalCreateTicketSchema>;
+export type UpdateUserPreferencesInput = z.infer<typeof updateUserPreferencesSchema>;
 export type UpdateTicketStatusInput = z.infer<typeof updateTicketStatusSchema>;
 export type ReassignTicketInput = z.infer<typeof reassignTicketSchema>;
 export type ResolveTicketInput = z.infer<typeof resolveTicketSchema>;

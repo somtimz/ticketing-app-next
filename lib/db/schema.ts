@@ -29,6 +29,7 @@ export const users = pgTable('users', {
   }),
   location: text('location'),
   isActive: boolean('is_active').notNull().default(true),
+  emailNotificationsEnabled: boolean('email_notifications_enabled').notNull().default(true),
   createdAt: timestamp('created_at')
     .notNull()
     .default(sql`now()`),
