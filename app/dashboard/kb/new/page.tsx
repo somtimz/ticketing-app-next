@@ -206,7 +206,7 @@ export default function NewKBArticlePage(): JSX.Element {
                 type="date"
                 value={expiresAt}
                 onChange={e => setExpiresAt(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
+                min={(() => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().split('T')[0]; })()}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
               <p className="mt-1 text-xs text-gray-400">Leave blank for no expiry.</p>

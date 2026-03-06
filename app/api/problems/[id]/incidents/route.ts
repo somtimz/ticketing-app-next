@@ -62,8 +62,8 @@ export async function POST(
     if (!problem) throw new APIError(404, 'not_found', 'Problem not found');
 
     const body = await req.json() as { ticketId: number };
-    if (!body.ticketId || typeof body.ticketId !== 'number') {
-      throw new APIError(400, 'bad_request', 'ticketId is required');
+    if (!Number.isInteger(body.ticketId) || body.ticketId <= 0) {
+      throw new APIError(400, 'bad_request', 'ticketId must be a positive integer');
     }
 
     // Check ticket exists
@@ -103,8 +103,8 @@ export async function DELETE(
     if (isNaN(problemId)) throw new APIError(400, 'bad_request', 'Invalid ID');
 
     const body = await req.json() as { ticketId: number };
-    if (!body.ticketId || typeof body.ticketId !== 'number') {
-      throw new APIError(400, 'bad_request', 'ticketId is required');
+    if (!Number.isInteger(body.ticketId) || body.ticketId <= 0) {
+      throw new APIError(400, 'bad_request', 'ticketId must be a positive integer');
     }
 
     await db

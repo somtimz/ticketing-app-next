@@ -152,7 +152,7 @@ function HorizontalBar({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function IncidentAnalyticsPage(): JSX.Element {
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const userRole = (session?.user as { role?: string })?.role;
   const isAgent =
     userRole === 'Agent' || userRole === 'TeamLead' || userRole === 'Admin';
@@ -183,6 +183,14 @@ export default function IncidentAnalyticsPage(): JSX.Element {
   }, [fetchData]);
 
   // ── Access guard ────────────────────────────────────────────────────────────
+
+  if (sessionStatus === 'loading') {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-gray-400 animate-pulse">Loading…</p>
+      </div>
+    );
+  }
 
   if (!isAgent) {
     return (

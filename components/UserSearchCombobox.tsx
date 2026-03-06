@@ -47,8 +47,10 @@ export default function UserSearchCombobox({
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (query.trim().length < 2) {
+      setIsLoading(false);
       setResults([]);
       setIsOpen(false);
+      setHighlightedIndex(-1);
       return;
     }
     setIsLoading(true);

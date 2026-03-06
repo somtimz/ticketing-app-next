@@ -16,8 +16,8 @@ export async function PATCH(
     const userId = parseInt(session!.user.id, 10);
 
     const { id } = await params;
-    const notifId = parseInt(id, 10);
-    if (isNaN(notifId)) throw new APIError(400, 'bad_request', 'Invalid ID');
+    if (!/^\d+$/.test(id)) throw new APIError(400, 'bad_request', 'Invalid ID');
+    const notifId = Number(id);
 
     const [updated] = await db
       .update(notifications)
@@ -44,8 +44,8 @@ export async function DELETE(
     const userId = parseInt(session!.user.id, 10);
 
     const { id } = await params;
-    const notifId = parseInt(id, 10);
-    if (isNaN(notifId)) throw new APIError(400, 'bad_request', 'Invalid ID');
+    if (!/^\d+$/.test(id)) throw new APIError(400, 'bad_request', 'Invalid ID');
+    const notifId = Number(id);
 
     await db
       .delete(notifications)
