@@ -5,7 +5,7 @@ import { tickets, ticketStatusHistory, users, ticketSatisfactionSurveys } from '
 import { eq } from 'drizzle-orm';
 import { updateTicketStatusSchema, type UpdateTicketStatusInput } from '@/lib/validators';
 import { sendTicketStatusUpdateEmail, sendSatisfactionSurveyEmail } from '@/lib/email';
-import { parseNotificationPreferences } from '@/app/api/users/me/preferences/route';
+import { parseNotificationPreferences } from '@/lib/notification-preferences';
 import type { ApiErrorResponse } from '@/types';
 import { randomUUID } from 'crypto';
 
@@ -73,10 +73,28 @@ export async function PUT(
       notes: validatedData.notes || null
     });
 
-    // Notify ticket submitter using granular preferences
-    const fullTicket = await db.query.tickets.findFirst({ where: eq(tickets.id, ticketId) }) as any;
+    // Fetch ticket + submitter in parallel to notify
+    const [fullTicket, ] = await db
+      .select({
+        ticketNumber: tickets.ticketNumber,
+        title: tickets.title,
+        createdBy: tickets.createdBy,
+        submitterEmail: users.email,
+        submitterNotifEnabled: users.emailNotificationsEnabled,
+        submitterNotifPrefs: users.notificationPreferences,
+      })
+      .from(tickets)
+      .leftJoin(users, eq(tickets.createdBy, users.id))
+      .where(eq(tickets.id, ticketId))
+      .limit(1) as any[];
+
     if (fullTicket?.createdBy) {
-      const submitter = await db.query.users.findFirst({ where: eq(users.id, fullTicket.createdBy) }) as any;
+      const submitter = {
+        email: fullTicket.submitterEmail,
+        emailNotificationsEnabled: fullTicket.submitterNotifEnabled,
+        notificationPreferences: fullTicket.submitterNotifPrefs,
+      };
+      if (submitter?.email) {
       if (submitter?.email) {
         const prefs = parseNotificationPreferences(
           submitter.notificationPreferences,
@@ -98,10 +116,7 @@ export async function PUT(
         // When ticket is closed, create a satisfaction survey and email it
         if (validatedData.status === 'Closed') {
           const token = randomUUID();
-          await db.insert(ticketSatisfactionSurveys).values({
-            ticketId,
-            token
-          });
+          await db.insert(ticketSatisfactionSurveys).values({ ticketId, token });
           void sendSatisfactionSurveyEmail(
             submitter.email,
             fullTicket.ticketNumber,

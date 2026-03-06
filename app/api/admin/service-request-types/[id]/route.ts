@@ -2,25 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { serviceRequestTypes } from '@/lib/db/schema';
+import type { NewServiceRequestType } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { hasRole } from '@/lib/rbac';
-import { z } from 'zod';
-
-const updateSchema = z.object({
-  name: z.string().min(1).max(200).optional(),
-  description: z.string().optional().nullable(),
-  defaultImpact: z.enum(['Low', 'Medium', 'High']).optional(),
-  defaultUrgency: z.enum(['Low', 'Medium', 'High']).optional(),
-  formFields: z.array(z.object({
-    name: z.string(),
-    label: z.string(),
-    type: z.enum(['text', 'textarea', 'select']),
-    required: z.boolean().default(false),
-    options: z.array(z.string()).optional()
-  })).optional().nullable(),
-  isActive: z.boolean().optional(),
-  sortOrder: z.number().int().optional()
-});
+import { updateServiceRequestTypeSchema } from '@/lib/validators';
 
 // PUT /api/admin/service-request-types/[id]
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -35,9 +20,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   try {
     const body = await req.json();
-    const data = updateSchema.parse(body);
+    const data = updateServiceRequestTypeSchema.parse(body);
 
-    const updateData: Record<string, unknown> = { updatedAt: new Date() };
+    const updateData: Partial<NewServiceRequestType> & { updatedAt: Date } = { updatedAt: new Date() };
     if (data.name !== undefined) updateData.name = data.name;
     if (data.description !== undefined) updateData.description = data.description;
     if (data.defaultImpact !== undefined) updateData.defaultImpact = data.defaultImpact;
@@ -48,7 +33,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const [updated] = await db
       .update(serviceRequestTypes)
-      .set(updateData as any)
+      .set(updateData)
       .where(eq(serviceRequestTypes.id, typeId))
       .returning();
 

@@ -4,23 +4,7 @@ import { db } from '@/lib/db';
 import { serviceRequestTypes, categories } from '@/lib/db/schema';
 import { eq, asc } from 'drizzle-orm';
 import { hasRole } from '@/lib/rbac';
-import { z } from 'zod';
-
-const createSchema = z.object({
-  categoryId: z.number().int().optional().nullable(),
-  name: z.string().min(1).max(200),
-  description: z.string().optional(),
-  defaultImpact: z.enum(['Low', 'Medium', 'High']).default('Medium'),
-  defaultUrgency: z.enum(['Low', 'Medium', 'High']).default('Medium'),
-  formFields: z.array(z.object({
-    name: z.string(),
-    label: z.string(),
-    type: z.enum(['text', 'textarea', 'select']),
-    required: z.boolean().default(false),
-    options: z.array(z.string()).optional()
-  })).optional(),
-  sortOrder: z.number().int().default(0)
-});
+import { createServiceRequestTypeSchema } from '@/lib/validators';
 
 // GET /api/admin/service-request-types
 export async function GET(req: NextRequest) {
@@ -61,7 +45,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const data = createSchema.parse(body);
+    const data = createServiceRequestTypeSchema.parse(body);
 
     const [row] = await db
       .insert(serviceRequestTypes)

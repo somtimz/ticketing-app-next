@@ -26,9 +26,10 @@ export default function RequestTypesPage() {
   const [types, setTypes] = useState<ServiceRequestType[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  // null = closed, 'new' = create form, number = edit that id
+  const [formMode, setFormMode] = useState<null | 'new' | number>(null);
   const [error, setError] = useState('');
+  const editingId = typeof formMode === 'number' ? formMode : null;
 
   const [form, setForm] = useState({
     name: '',
@@ -61,8 +62,7 @@ export default function RequestTypesPage() {
 
   const resetForm = () => {
     setForm({ name: '', description: '', categoryId: '', defaultImpact: 'Medium', defaultUrgency: 'Medium', sortOrder: 0 });
-    setEditingId(null);
-    setShowForm(false);
+    setFormMode(null);
     setError('');
   };
 
@@ -75,8 +75,7 @@ export default function RequestTypesPage() {
       defaultUrgency: type.defaultUrgency,
       sortOrder: type.sortOrder
     });
-    setEditingId(type.id);
-    setShowForm(true);
+    setFormMode(type.id);
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -140,16 +139,16 @@ export default function RequestTypesPage() {
           <p className="mt-1 text-sm text-gray-500">Define the types of requests employees can submit through the portal</p>
         </div>
         <button
-          onClick={() => { setShowForm(!showForm); setEditingId(null); }}
+          onClick={() => setFormMode(formMode === 'new' ? null : 'new')}
           className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700"
         >
-          {showForm && !editingId ? <XMarkIcon className="h-4 w-4" /> : <PlusIcon className="h-4 w-4" />}
-          {showForm && !editingId ? 'Cancel' : 'Add Type'}
+          {formMode === 'new' ? <XMarkIcon className="h-4 w-4" /> : <PlusIcon className="h-4 w-4" />}
+          {formMode === 'new' ? 'Cancel' : 'Add Type'}
         </button>
       </div>
 
       {/* Form */}
-      {showForm && (
+      {formMode !== null && (
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <h2 className="text-base font-semibold text-gray-900 mb-4">
             {editingId ? 'Edit Request Type' : 'New Request Type'}

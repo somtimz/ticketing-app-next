@@ -7,7 +7,7 @@ import { eq, asc } from 'drizzle-orm';
 import { requireAuth, handleAPIError } from '@/lib/api-error';
 import { hasRole } from '@/lib/rbac';
 import { sendTicketCommentEmail } from '@/lib/email';
-import { parseNotificationPreferences } from '@/app/api/users/me/preferences/route';
+import { parseNotificationPreferences } from '@/lib/notification-preferences';
 
 const addCommentSchema = z.object({
   body: z.string().min(1).max(5000),

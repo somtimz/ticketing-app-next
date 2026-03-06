@@ -34,18 +34,22 @@ export default function SurveyPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    const controller = new AbortController();
     const load = async () => {
       try {
-        const res = await fetch(`/api/portal/survey/${token}`);
+        const res = await fetch(`/api/portal/survey/${token}`, { signal: controller.signal });
         if (!res.ok) { setNotFound(true); return; }
         const data = await res.json() as { survey: SurveyData };
         setSurvey(data.survey);
         if (data.survey.submittedAt) setSubmitted(true);
+      } catch (e) {
+        if (e instanceof Error && e.name !== 'AbortError') setNotFound(true);
       } finally {
         setIsLoading(false);
       }
     };
     void load();
+    return () => controller.abort();
   }, [token]);
 
   const handleSubmit = async () => {

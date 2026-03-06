@@ -75,6 +75,35 @@ export const portalCreateTicketSchema = z.object({
   urgency: z.enum(['Low', 'Medium', 'High']).default('Medium')
 });
 
+// Service Request Type schemas
+export const formFieldSchema = z.object({
+  name: z.string(),
+  label: z.string(),
+  type: z.enum(['text', 'textarea', 'select']),
+  required: z.boolean().default(false),
+  options: z.array(z.string()).optional()
+});
+
+export const createServiceRequestTypeSchema = z.object({
+  categoryId: z.number().int().optional().nullable(),
+  name: z.string().min(1).max(200),
+  description: z.string().optional(),
+  defaultImpact: z.enum(['Low', 'Medium', 'High']).default('Medium'),
+  defaultUrgency: z.enum(['Low', 'Medium', 'High']).default('Medium'),
+  formFields: z.array(formFieldSchema).optional(),
+  sortOrder: z.number().int().default(0)
+});
+
+export const updateServiceRequestTypeSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  description: z.string().optional().nullable(),
+  defaultImpact: z.enum(['Low', 'Medium', 'High']).optional(),
+  defaultUrgency: z.enum(['Low', 'Medium', 'High']).optional(),
+  formFields: z.array(formFieldSchema).optional().nullable(),
+  isActive: z.boolean().optional(),
+  sortOrder: z.number().int().optional()
+});
+
 // Type exports from schemas
 export type CreateTicketInput = z.infer<typeof createTicketSchema>;
 export type PortalCreateTicketInput = z.infer<typeof portalCreateTicketSchema>;

@@ -41,25 +41,32 @@ const ACTIVE_STATUSES = ['New', 'Assigned', 'InProgress', 'Pending'];
 export default function PortalTicketsPage() {
   const [tickets, setTickets] = useState<PortalTicket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
   const [filter, setFilter] = useState('active');
   const [query, setQuery] = useState('');
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchTickets = async (q = '') => {
     setIsLoading(true);
+    setError('');
     try {
       const url = q ? `/api/portal/tickets?q=${encodeURIComponent(q)}` : '/api/portal/tickets';
       const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to load');
       const data = await res.json() as { tickets: PortalTicket[] };
       setTickets(data.tickets ?? []);
     } catch {
-      // ignore
+      setError('Could not load your requests. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => { void fetchTickets(); }, []);
+  useEffect(() => {
+    void fetchTickets();
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSearch = (value: string) => {
     setQuery(value);
@@ -92,6 +99,10 @@ export default function PortalTicketsPage() {
           New Request
         </Link>
       </div>
+
+      {error && (
+        <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-800">{error}</div>
+      )}
 
       {/* Search */}
       <div className="relative">
