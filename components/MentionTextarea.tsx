@@ -38,17 +38,22 @@ export default function MentionTextarea({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reqSeqRef = useRef(0);
 
   const fetchSuggestions = useCallback(async (q: string) => {
     if (!q) { setSuggestions([]); return; }
+    const seq = ++reqSeqRef.current;
     try {
       const res = await fetch(`/api/agents?q=${encodeURIComponent(q)}`);
       if (res.ok) {
         const data = await res.json();
-        setSuggestions((data.agents ?? []).slice(0, 6));
+        // Discard stale responses from earlier, slower requests
+        if (seq === reqSeqRef.current) {
+          setSuggestions((data.agents ?? []).slice(0, 6));
+        }
       }
     } catch {
-      setSuggestions([]);
+      if (seq === reqSeqRef.current) setSuggestions([]);
     }
   }, []);
 

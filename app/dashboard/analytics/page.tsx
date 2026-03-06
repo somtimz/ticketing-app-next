@@ -421,14 +421,17 @@ export default function AnalyticsDashboardPage(): JSX.Element {
                     <div>
                       <h3 className="text-sm font-medium text-gray-700 mb-3">Volume by Category</h3>
                       <div className="space-y-2">
-                        {incidents.volumeByCategory.slice(0, 8).map(cat => (
-                          <HBar
-                            key={cat.categoryName}
-                            label={cat.categoryName}
-                            value={cat.count}
-                            max={incidents.volumeByCategory[0]?.count ?? 1}
-                          />
-                        ))}
+                        {(() => {
+                          const maxCat = Math.max(...incidents.volumeByCategory.map(c => c.count), 1);
+                          return incidents.volumeByCategory.slice(0, 8).map(cat => (
+                            <HBar
+                              key={cat.categoryName}
+                              label={cat.categoryName}
+                              value={cat.count}
+                              max={maxCat}
+                            />
+                          ));
+                        })()}
                       </div>
                     </div>
                   )}
@@ -631,15 +634,18 @@ export default function AnalyticsDashboardPage(): JSX.Element {
                 <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-6">
                   <h2 className="text-lg font-medium text-gray-900 mb-4">Tickets Resolved by Agent</h2>
                   <div className="space-y-2">
-                    {agentActivity.map(({ agent, activity }) => (
-                      <HBar
-                        key={agent.id}
-                        label={agent.fullName}
-                        value={activity.ticketsResolved}
-                        max={agentActivity[0]?.activity.ticketsResolved ?? 1}
-                        color="bg-green-500"
-                      />
-                    ))}
+                    {(() => {
+                      const maxResolved = Math.max(...agentActivity.map(a => a.activity.ticketsResolved), 1);
+                      return agentActivity.map(({ agent, activity }) => (
+                        <HBar
+                          key={agent.id}
+                          label={agent.fullName}
+                          value={activity.ticketsResolved}
+                          max={maxResolved}
+                          color="bg-green-500"
+                        />
+                      ));
+                    })()}
                   </div>
                 </div>
               )}
