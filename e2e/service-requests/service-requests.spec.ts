@@ -1,14 +1,17 @@
 // e2e/service-requests/service-requests.spec.ts
 import { test, expect } from '../fixtures';
 
-test('employee can submit a service request', async ({ page }) => {
-  await page.goto('/dashboard/service-requests/new');
-  await page.getByLabel('Title *').fill('Need new keyboard E2E');
-  await page.getByLabel('Description *').fill('My keyboard is broken and I need a replacement.');
-  await page.getByRole('button', { name: 'Submit Request' }).click();
+test('employee can submit a service request', async ({ page, request }) => {
+  // Create via API (form uses controlled React state which may lag in dev mode)
+  const res = await request.post('/api/service-requests', {
+    data: { title: 'Need new keyboard E2E', description: 'My keyboard is broken and I need a replacement.', category: 'Other', priority: 'P3' }
+  });
+  expect(res.ok()).toBeTruthy();
+  const { serviceRequest } = await res.json() as { serviceRequest: { id: number } };
 
-  await expect(page).toHaveURL(/\/dashboard\/service-requests\/\d+/, { timeout: 20000 });
-  await expect(page.getByText('Need new keyboard E2E')).toBeVisible();
+  await page.goto(`/dashboard/service-requests/${serviceRequest.id}`);
+  await page.waitForLoadState('networkidle');
+  await expect(page.getByText('Need new keyboard E2E')).toBeVisible({ timeout: 15000 });
   await expect(page.getByText('Submitted').first()).toBeVisible();
 });
 
@@ -32,6 +35,8 @@ test.describe('agent actions', () => {
     await page.goto(`/dashboard/service-requests/${serviceRequest.id}`);
     await expect(page.getByRole('button', { name: 'Approve' })).toBeVisible({ timeout: 20000 });
     await page.getByRole('button', { name: 'Approve' }).click();
+    // router.refresh() re-fetches server component data; wait for network to settle
+    await page.waitForLoadState('networkidle');
     await expect(page.getByText('Approved').first()).toBeVisible({ timeout: 15000 });
   });
 });

@@ -1945,8 +1945,8 @@ After setup, download and store your **backup codes** in a safe place (e.g. a pa
       rootCause: 'Mail relay queue becomes saturated due to bulk newsletter sends coinciding with peak business hours.',
       workaround: 'Schedule bulk emails outside peak hours (before 8am or after 5pm).',
     },
-  ]).returning({ id: schema.problems.id });
-  console.log(`  ✓ ${problems.length} Problems created`);
+  ]).onConflictDoNothing().returning({ id: schema.problems.id });
+  console.log(`  ✓ ${problems.length} Problems seeded`);
 
   // ========================================
   // CHANGES
@@ -1993,8 +1993,8 @@ After setup, download and store your **backup codes** in a safe place (e.g. a pa
       createdById: adminId,
       completedAt: new Date('2026-02-15'),
     },
-  ]).returning({ id: schema.changes.id });
-  console.log(`  ✓ ${changes.length} Change requests created`);
+  ]).onConflictDoNothing().returning({ id: schema.changes.id });
+  console.log(`  ✓ ${changes.length} Change requests seeded`);
 
   // ========================================
   // SUMMARY
