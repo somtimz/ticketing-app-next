@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import ReactMarkdown from 'react-markdown';
 
 interface KBArticle {
   id: number;
@@ -74,8 +75,8 @@ export default function PortalKBArticlePage() {
           Last updated {new Date(article.updatedAt).toLocaleDateString()}
         </p>
 
-        <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap">
-          {article.content}
+        <div className="prose prose-sm max-w-none text-gray-700">
+          <ReactMarkdown>{article.content}</ReactMarkdown>
         </div>
 
         {/* Feedback */}

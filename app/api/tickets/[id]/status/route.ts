@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { tickets, ticketStatusHistory, users, ticketSatisfactionSurveys } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { updateTicketStatusSchema, type UpdateTicketStatusInput } from '@/lib/validators';
+import { hasRole } from '@/lib/rbac';
 import { sendTicketStatusUpdateEmail, sendSatisfactionSurveyEmail } from '@/lib/email';
 import { parseNotificationPreferences } from '@/lib/notification-preferences';
 import type { ApiErrorResponse } from '@/types';
@@ -39,9 +40,9 @@ export async function PUT(
     // Validate request body
     const validatedData: UpdateTicketStatusInput = updateTicketStatusSchema.parse(body);
 
-    // Get current ticket status
+    // Get current ticket status + ownership
     const currentTicket = await db
-      .select({ status: tickets.status })
+      .select({ status: tickets.status, createdBy: tickets.createdBy })
       .from(tickets)
       .where(eq(tickets.id, ticketId))
       .limit(1);
@@ -51,6 +52,19 @@ export async function PUT(
         { error: 'Ticket not found' },
         { status: 404 }
       );
+    }
+
+    // Employees may only close their own tickets
+    if (!hasRole(session, 'Agent')) {
+      if (currentTicket[0].createdBy !== Number.parseInt(session.user.id, 10)) {
+        return NextResponse.json<ApiErrorResponse>({ error: 'Forbidden' }, { status: 403 });
+      }
+      if (validatedData.status !== 'Closed') {
+        return NextResponse.json<ApiErrorResponse>(
+          { error: 'Employees may only close tickets' },
+          { status: 403 }
+        );
+      }
     }
 
     // Update ticket status

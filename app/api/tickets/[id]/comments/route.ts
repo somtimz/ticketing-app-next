@@ -32,6 +32,21 @@ export async function GET(
 
     const isAgent = hasRole(session, 'Agent');
 
+    // Verify ticket exists and check ownership for non-agents
+    const ticketOwner = await db
+      .select({ createdBy: tickets.createdBy })
+      .from(tickets)
+      .where(eq(tickets.id, ticketId))
+      .limit(1);
+
+    if (ticketOwner.length === 0) {
+      return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
+    }
+
+    if (!isAgent && ticketOwner[0].createdBy !== Number.parseInt(session!.user.id, 10)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const rows = await db
       .select({
         id: comments.id,
@@ -79,14 +94,18 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid ticket ID' }, { status: 400 });
     }
 
-    // Verify ticket exists
+    // Verify ticket exists and check ownership for non-agents
     const ticket = await db.query.tickets.findFirst({
       where: eq(tickets.id, ticketId),
-      columns: { id: true }
+      columns: { id: true, createdBy: true }
     });
 
     if (!ticket) {
       return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
+    }
+
+    if (!hasRole(session, 'Agent') && ticket.createdBy !== Number.parseInt(session!.user.id, 10)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await req.json();

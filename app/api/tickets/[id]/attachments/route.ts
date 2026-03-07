@@ -8,6 +8,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { attachments, tickets } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/api-error';
+import { hasRole } from '@/lib/rbac';
 import { uploadAttachment, isValidFileType, isValidFileSize, MAX_FILE_SIZE } from '@/lib/storage';
 import { eq } from 'drizzle-orm';
 import { handleAPIError } from '@/lib/api-error';
@@ -23,7 +24,8 @@ export async function GET(
 
     const { id } = await params;
     const ticket = await db.query.tickets.findFirst({
-      where: eq(tickets.id, parseInt(id))
+      where: eq(tickets.id, parseInt(id)),
+      columns: { id: true, createdBy: true }
     });
 
     if (!ticket) {
@@ -31,6 +33,10 @@ export async function GET(
         { error: 'not_found', message: 'Ticket not found' },
         { status: 404 }
       );
+    }
+
+    if (!hasRole(session, 'Agent') && ticket.createdBy !== parseInt(session!.user.id, 10)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const ticketAttachments = await db.query.attachments.findMany({
@@ -64,9 +70,10 @@ export async function POST(
 
     const { id } = await params;
 
-    // Verify ticket exists
+    // Verify ticket exists and check ownership for non-agents
     const ticket = await db.query.tickets.findFirst({
-      where: eq(tickets.id, parseInt(id))
+      where: eq(tickets.id, parseInt(id)),
+      columns: { id: true, createdBy: true }
     });
 
     if (!ticket) {
@@ -74,6 +81,10 @@ export async function POST(
         { error: 'not_found', message: 'Ticket not found' },
         { status: 404 }
       );
+    }
+
+    if (!hasRole(session, 'Agent') && ticket.createdBy !== parseInt(session!.user.id, 10)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Parse form data with files

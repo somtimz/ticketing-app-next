@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import { tickets, callers, categories, calls, users, ticketStatusHistory } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { updateTicketStatusSchema, type UpdateTicketStatusInput } from '@/lib/validators';
-import { canModifyTicket } from '@/lib/rbac';
+import { canModifyTicket, hasRole } from '@/lib/rbac';
 import { APIError, handleAPIError, requireAuth } from '@/lib/api-error';
 import { sendTicketStatusUpdateEmail, sendTicketResolvedEmail } from '@/lib/email';
 import type { TicketWithRelations, CallWithCaller, ApiErrorResponse } from '@/types';
@@ -53,6 +53,7 @@ export async function GET(
         resolvedAt: tickets.resolvedAt,
         closedAt: tickets.closedAt,
         resolution: tickets.resolution,
+        createdBy: tickets.createdBy,
         category: {
           id: categories.id,
           name: categories.name
@@ -85,6 +86,11 @@ export async function GET(
     }
 
     const ticket = ticketResult[0];
+
+    // Employees may only view their own tickets
+    if (!hasRole(session, 'Agent') && ticket.createdBy !== parseInt(session.user.id, 10)) {
+      return NextResponse.json<ApiErrorResponse>({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Get call history
     const callsResult = await db

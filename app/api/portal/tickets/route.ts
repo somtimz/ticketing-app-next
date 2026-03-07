@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     const countResult = await db.select({ count: tickets.id }).from(tickets);
     const count = countResult.length || 0;
     const sequence = String(count + 1).padStart(4, '0');
-    const ticketNumber = `INC-${new Date().getFullYear()}-${sequence}`;
+    const ticketNumber = `INC-${sequence}`;
 
     // Find or create category
     let categoryId: number | null = validatedData.categoryId ?? null;
