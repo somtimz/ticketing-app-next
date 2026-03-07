@@ -74,9 +74,11 @@ app/
 │   ├── users/           # User management (Admin) + /[id]/summary profile endpoint
 │   ├── assets/          # Asset CRUD + /[id]/assign + /[id]/retire
 │   ├── service-requests/ # Service request CRUD + /[id]/status + /[id]/assign + /[id]/comments
+│   ├── customers/       # Customer CRUD (Admin)
 │   ├── kb/
 │   │   ├── articles/    # KB CRUD (list, create, get, edit, delete, feedback)
-│   │   └── search/      # Full-text KB search
+│   │   ├── search/      # Full-text KB search
+│   │   └── tags/        # KB tag list + create
 │   └── analytics/       # Reporting endpoints
 └── dashboard/
     ├── issue-logging/   # Ticket list, detail, new ticket
@@ -85,7 +87,9 @@ app/
     ├── assets/          # Asset inventory + detail + new
     ├── service-requests/ # Service request list, detail, new
     ├── kb/              # Knowledge base (browse, view, new, edit)
-    └── agents/          # Agent management (Admin)
+    ├── agents/          # Agent management (Admin)
+    └── admin/
+        └── customers/   # Customer management (Admin)
 ```
 
 ## Docs Structure
@@ -98,8 +102,10 @@ docs/
 ├── design/
 │   └── mvp-design.md                    # MVP feature design
 ├── plans/
-│   ├── mvp-implementation.md            # Active implementation plan
-│   ├── 2026-02-20-kb-inline-ticket-suggestions.md  # KB suggestions + isAgentOnly implementation plan
+│   ├── mvp-implementation.md                        # MVP plan (complete)
+│   ├── 2026-02-20-kb-inline-ticket-suggestions.md  # KB suggestions + isAgentOnly (complete)
+│   ├── 2026-02-20-kb-tags-publication.md           # KB tags + publishedAt (complete)
+│   ├── 2026-02-27-assets-service-requests.md       # Assets + service requests (complete)
 │   └── 2026-02-27-assets-service-requests-design.md  # Assets + service requests design
 ├── guides/
 │   └── manual-testing.md               # Manual testing scenarios
@@ -122,6 +128,10 @@ docs/
 - **Asset types:** Hardware | Software
 - **Asset statuses:** Active | In Repair | Retired
 - **Service request categories:** New Equipment | Software Access | Account Setup | Hardware Repair | Other
+- **KB isAgentOnly:** Articles flagged `isAgentOnly=true` are filtered from Employee-visible KB list, search, and detail routes
+- **KB tags:** Many-to-many via `kbTags` + `articleTags` tables; `GET /api/kb/tags` returns all tags; create/edit forms support tag autocomplete + create-on-the-fly
+- **KB publishedAt:** Auto-set on first publish; shown as publication badge on browse list
+- **Customers:** External contacts linked to tickets + service requests; CRUD at `/api/customers/`; Admin manages via `/dashboard/admin/customers/`
 
 ## Test Accounts (after `npm run db:seed`)
 
