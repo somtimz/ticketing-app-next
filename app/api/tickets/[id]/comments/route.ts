@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { comments, tickets, users, callers } from '@/lib/db/schema';
-import { eq, asc } from 'drizzle-orm';
+import { comments, tickets, users, callers, commentMentions, notifications } from '@/lib/db/schema';
+import { eq, asc, ilike, or } from 'drizzle-orm';
 import { requireAuth, handleAPIError } from '@/lib/api-error';
 import { hasRole } from '@/lib/rbac';
 import { sendTicketCommentEmail } from '@/lib/email';
@@ -109,6 +109,43 @@ export async function POST(
       .update(tickets)
       .set({ lastActivityAt: new Date(), updatedAt: new Date() })
       .where(eq(tickets.id, ticketId));
+
+    // Phase 3E: Parse @mentions and insert commentMentions + notifications
+    const mentionMatches = [...validated.body.matchAll(/@(\w+)/g)];
+    if (mentionMatches.length > 0) {
+      const mentionTokens = mentionMatches.map(m => m[1]);
+      // Find matching users by fullName prefix (each token could be first or last name fragment)
+      const matchedUsers = await db
+        .select({ id: users.id, fullName: users.fullName })
+        .from(users)
+        .where(
+          or(
+            ...mentionTokens.map(token =>
+              ilike(users.fullName, `%${token}%`)
+            )
+          )
+        );
+
+      const authorId = Number.parseInt(session!.user.id, 10);
+      const seen = new Set<number>();
+      for (const u of matchedUsers) {
+        if (u.id === authorId || seen.has(u.id)) continue;
+        seen.add(u.id);
+
+        await db.insert(commentMentions).values({
+          commentId: comment.id,
+          mentionedUserId: u.id
+        });
+
+        await db.insert(notifications).values({
+          userId: u.id,
+          type: 'mention',
+          title: 'You were mentioned in a comment',
+          body: validated.body.slice(0, 100),
+          linkUrl: `/dashboard/issue-logging/${ticketId}`
+        });
+      }
+    }
 
     // Send email notification for non-internal comments
     if (!isInternal) {

@@ -45,7 +45,7 @@ const STATUS_COLORS: Record<string, string> = {
   New: 'bg-blue-100 text-blue-700',
   Assigned: 'bg-indigo-100 text-indigo-700',
   InProgress: 'bg-amber-100 text-amber-700',
-  Pending: 'bg-yellow-100 text-yellow-700',
+  'On Hold': 'bg-yellow-100 text-yellow-700',
   Resolved: 'bg-green-100 text-green-700',
   Closed: 'bg-gray-100 text-gray-700',
   Submitted: 'bg-blue-100 text-blue-700',

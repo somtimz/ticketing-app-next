@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 import { updateTicketStatusSchema, type UpdateTicketStatusInput } from '@/lib/validators';
 import { canModifyTicket } from '@/lib/rbac';
 import { APIError, handleAPIError, requireAuth } from '@/lib/api-error';
-import { sendTicketStatusUpdateEmail, sendTicketResolvedEmail } from '@/lib/email';
+import { sendTicketStatusUpdateEmail, sendTicketResolvedEmail, sendMajorIncidentEmail } from '@/lib/email';
 import type { TicketWithRelations, CallWithCaller, ApiErrorResponse } from '@/types';
 
 // GET /api/tickets/[id] - Get ticket details with call history
@@ -53,6 +53,8 @@ export async function GET(
         resolvedAt: tickets.resolvedAt,
         closedAt: tickets.closedAt,
         resolution: tickets.resolution,
+        isMajorIncident: tickets.isMajorIncident,
+        majorIncidentNotes: tickets.majorIncidentNotes,
         category: {
           id: categories.id,
           name: categories.name
@@ -187,7 +189,11 @@ export async function GET(
       calls: typedCalls
     };
 
-    return NextResponse.json(typedTicket);
+    return NextResponse.json({
+      ...typedTicket,
+      isMajorIncident: ticket.isMajorIncident ?? false,
+      majorIncidentNotes: ticket.majorIncidentNotes ?? null
+    });
   } catch (error) {
     console.error('Error fetching ticket:', error);
     return NextResponse.json<ApiErrorResponse>(
@@ -198,12 +204,11 @@ export async function GET(
 }
 
 // Valid status transitions
-// Note: Pending status is not yet in the database schema but included for future use
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  'New': ['Assigned', 'InProgress'],
-  'Assigned': ['InProgress', 'Pending', 'Resolved'],
-  'InProgress': ['Pending', 'Resolved'],
-  'Pending': ['Assigned', 'InProgress', 'Resolved'],
+  'New': ['Assigned', 'InProgress', 'On Hold'],
+  'Assigned': ['InProgress', 'On Hold', 'Resolved'],
+  'InProgress': ['On Hold', 'Resolved'],
+  'On Hold': ['Assigned', 'InProgress', 'Resolved'],
   'Resolved': ['InProgress', 'Closed'],
   'Closed': ['InProgress']
 };
@@ -243,6 +248,51 @@ export async function PATCH(
         .where(eq(tickets.id, ticketId))
         .returning({ id: tickets.id, customerId: tickets.customerId });
       return NextResponse.json({ success: true, ticketId, customerId: updated.customerId });
+    }
+
+    // Handle major incident flag separately (TeamLead+ only)
+    if ('isMajorIncident' in body) {
+      const userRole = authenticatedSession.user.role as string;
+      if (!['TeamLead', 'Admin'].includes(userRole)) {
+        throw new APIError(403, 'forbidden', 'Only Team Leads and Admins can flag major incidents');
+      }
+
+      const isMajor = Boolean(body.isMajorIncident);
+      const notes = typeof body.majorIncidentNotes === 'string' ? body.majorIncidentNotes : undefined;
+
+      const [ticketRow] = await db
+        .select({
+          id: tickets.id,
+          ticketNumber: tickets.ticketNumber,
+          title: tickets.title,
+          priority: tickets.priority
+        })
+        .from(tickets)
+        .where(eq(tickets.id, ticketId))
+        .limit(1);
+
+      if (!ticketRow) throw new APIError(404, 'ticket_not_found', 'Ticket not found');
+
+      await db
+        .update(tickets)
+        .set({ isMajorIncident: isMajor, majorIncidentNotes: notes ?? null, updatedAt: new Date() })
+        .where(eq(tickets.id, ticketId));
+
+      // Broadcast to all team leads + admins when flagged
+      if (isMajor) {
+        const stakeholders = await db
+          .select({ email: users.email })
+          .from(users)
+          .where(eq(users.isActive, true));
+
+        for (const s of stakeholders) {
+          if (s.email) {
+            await sendMajorIncidentEmail(s.email, ticketRow.ticketNumber, ticketRow.title, ticketRow.priority, ticketId, notes);
+          }
+        }
+      }
+
+      return NextResponse.json({ success: true, ticketId, isMajorIncident: isMajor });
     }
 
     // Validate request body

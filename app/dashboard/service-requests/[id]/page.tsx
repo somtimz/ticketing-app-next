@@ -8,6 +8,7 @@ import { hasRole } from '@/lib/rbac';
 import { format } from 'date-fns';
 import ServiceRequestActions from '@/components/service-requests/ServiceRequestActions';
 import CustomerSection from '@/components/service-requests/CustomerSection';
+import KbSuggestions from '@/components/tickets/KbSuggestions';
 
 const STATUS_COLORS: Record<string, string> = {
   Submitted: 'bg-blue-100 text-blue-700',
@@ -158,6 +159,13 @@ export default async function ServiceRequestDetailPage({ params }: { params: Pro
             ))}
           </div>
           {isAgent && <ServiceRequestActions srId={srId} status={sr.status} />}
+
+          {/* KB Article Suggestions (agents only) */}
+          {isAgent && (
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <KbSuggestions ticketTitle={sr.title} />
+            </div>
+          )}
         </div>
       </div>
     </div>

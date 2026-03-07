@@ -28,7 +28,12 @@ async function getArticle(id: number, isAgent: boolean) {
       isAgentOnly: knowledgeBaseArticles.isAgentOnly,
       createdAt: knowledgeBaseArticles.createdAt,
       updatedAt: knowledgeBaseArticles.updatedAt,
-      publishedAt: knowledgeBaseArticles.publishedAt
+      publishedAt: knowledgeBaseArticles.publishedAt,
+      articleType: knowledgeBaseArticles.articleType,
+      expiresAt: knowledgeBaseArticles.expiresAt,
+      reviewStatus: knowledgeBaseArticles.reviewStatus,
+      reviewedById: knowledgeBaseArticles.reviewedById,
+      reviewedAt: knowledgeBaseArticles.reviewedAt
     })
     .from(knowledgeBaseArticles)
     .leftJoin(categories, eq(knowledgeBaseArticles.categoryId, categories.id))
@@ -43,7 +48,19 @@ async function getArticle(id: number, isAgent: boolean) {
           )
     );
 
-  return article ?? null;
+  if (!article) return null;
+
+  // Fetch reviewer name separately to avoid self-join complexity
+  let reviewerName: string | null = null;
+  if (article.reviewedById) {
+    const [reviewer] = await db
+      .select({ fullName: users.fullName })
+      .from(users)
+      .where(eq(users.id, article.reviewedById));
+    reviewerName = reviewer?.fullName ?? null;
+  }
+
+  return { ...article, reviewerName };
 }
 
 // GET /api/kb/articles/[id]
@@ -122,13 +139,14 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       }
     }
 
-    const { tagIds, ...articleData } = data;
+    const { tagIds, expiresAt, ...articleData } = data;
     const [updated] = await db
       .update(knowledgeBaseArticles)
       .set({
         ...articleData,
         categoryId: data.categoryId ?? null,
         ...(publishedAt !== undefined ? { publishedAt } : {}),
+        ...(expiresAt !== undefined ? { expiresAt: expiresAt ? new Date(expiresAt) : null } : {}),
         updatedAt: new Date()
       })
       .where(eq(knowledgeBaseArticles.id, articleId))

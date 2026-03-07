@@ -23,11 +23,14 @@ import {
   CheckBadgeIcon,
   ChatBubbleLeftIcon,
   PhoneIcon,
-  PaperClipIcon
+  PaperClipIcon,
+  ExclamationTriangleIcon,
+  FireIcon
 } from '@heroicons/react/24/outline';
 import type { TicketWithRelations, TicketStatus, TicketPriority } from '@/types';
 import { getSLAStatus } from '@/lib/sla';
 import KbSuggestions from '@/components/tickets/KbSuggestions';
+import MentionTextarea from '@/components/MentionTextarea';
 
 interface CustomerSummary {
   id: number;
@@ -69,7 +72,7 @@ const STATUS_COLORS: Record<TicketStatus, string> = {
   New: 'bg-status-open text-white',
   Assigned: 'bg-blue-500 text-white',
   InProgress: 'bg-status-inProgress text-white',
-  Pending: 'bg-yellow-500 text-white',
+  'On Hold': 'bg-yellow-500 text-white',
   Resolved: 'bg-status-resolved text-white',
   Closed: 'bg-status-closed text-white'
 };
@@ -78,7 +81,7 @@ const STATUS_LABELS: Record<TicketStatus, string> = {
   New: 'New',
   Assigned: 'Assigned',
   InProgress: 'In Progress',
-  Pending: 'Pending',
+  'On Hold': 'On Hold',
   Resolved: 'Resolved',
   Closed: 'Closed'
 };
@@ -94,7 +97,7 @@ const STATUS_ICONS: Record<TicketStatus, React.ElementType> = {
   New: SparklesIcon,
   Assigned: UserCircleIcon,
   InProgress: ArrowPathSolid,
-  Pending: PauseCircleIcon,
+  'On Hold': PauseCircleIcon,
   Resolved: CheckCircleIcon,
   Closed: LockClosedIcon
 };
@@ -206,8 +209,15 @@ export default function TicketDetailPage(): JSX.Element {
   const [isLinkingCustomer, setIsLinkingCustomer] = useState(false);
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
 
+  // Major incident
+  const [isMajorIncident, setIsMajorIncident] = useState(false);
+  const [majorIncidentNotes, setMajorIncidentNotes] = useState('');
+  const [isTogglingMajorIncident, setIsTogglingMajorIncident] = useState(false);
+  const [isSavingMajorNotes, setIsSavingMajorNotes] = useState(false);
+
   const userRole = (session?.user as any)?.role as string | undefined;
   const isAgent = userRole === 'Agent' || userRole === 'TeamLead' || userRole === 'Admin';
+  const isTeamLead = userRole === 'TeamLead' || userRole === 'Admin';
 
   const fetchTicket = useCallback(async () => {
     try {
@@ -216,6 +226,8 @@ export default function TicketDetailPage(): JSX.Element {
       const data = await res.json() as TicketWithRelations;
       setTicket(data);
       setNewStatus(data.status);
+      setIsMajorIncident(Boolean((data as any).isMajorIncident));
+      setMajorIncidentNotes((data as any).majorIncidentNotes ?? '');
     } catch {
       setError('Failed to load ticket');
     } finally {
@@ -446,6 +458,44 @@ export default function TicketDetailPage(): JSX.Element {
     }
   };
 
+  const handleToggleMajorIncident = async () => {
+    const newValue = !isMajorIncident;
+    setIsTogglingMajorIncident(true);
+    try {
+      const res = await fetch(`/api/tickets/${ticketId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isMajorIncident: newValue,
+          majorIncidentNotes: newValue ? majorIncidentNotes : null
+        })
+      });
+      if (res.ok) {
+        setIsMajorIncident(newValue);
+        if (!newValue) setMajorIncidentNotes('');
+      }
+    } catch {
+      // non-fatal
+    } finally {
+      setIsTogglingMajorIncident(false);
+    }
+  };
+
+  const handleSaveMajorNotes = async () => {
+    setIsSavingMajorNotes(true);
+    try {
+      await fetch(`/api/tickets/${ticketId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isMajorIncident: true, majorIncidentNotes })
+      });
+    } catch {
+      // non-fatal
+    } finally {
+      setIsSavingMajorNotes(false);
+    }
+  };
+
   const handleFileUpload = async (file: File) => {
     setIsUploadingFile(true);
     setFileError('');
@@ -536,6 +586,21 @@ export default function TicketDetailPage(): JSX.Element {
           </button>
         </div>
       </div>
+
+      {/* Major Incident Banner */}
+      {isMajorIncident && (
+        <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4 flex items-start gap-3">
+          <FireIcon className="h-6 w-6 text-red-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-bold text-red-700 uppercase tracking-wide text-sm">Major Incident Declared</p>
+            {majorIncidentNotes && (
+              <p className="text-red-700 text-sm mt-1">{majorIncidentNotes}</p>
+            )}
+            <p className="text-red-500 text-xs mt-1">All active staff have been notified via email.</p>
+          </div>
+          <ExclamationTriangleIcon className="h-5 w-5 text-red-500 shrink-0" />
+        </div>
+      )}
 
       {/* Details Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -727,10 +792,10 @@ export default function TicketDetailPage(): JSX.Element {
 
         {/* Add comment form */}
         <form onSubmit={handleAddComment} className="space-y-3">
-          <textarea
+          <MentionTextarea
             value={commentBody}
-            onChange={e => setCommentBody(e.target.value)}
-            placeholder="Add a comment..."
+            onChange={setCommentBody}
+            placeholder="Add a comment... (type @ to mention someone)"
             rows={3}
             required
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -931,6 +996,51 @@ export default function TicketDetailPage(): JSX.Element {
           <h2 className="text-lg font-medium text-gray-900 mb-4">Actions</h2>
           <div className="space-y-6">
 
+            {/* Major Incident Toggle (TeamLead+) */}
+            {isTeamLead && (
+              <div className={`space-y-3 pb-4 border-b border-gray-200 ${isMajorIncident ? 'p-3 bg-red-50 rounded-lg border border-red-200' : ''}`}>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <FireIcon className={`h-4 w-4 ${isMajorIncident ? 'text-red-600' : 'text-gray-400'}`} />
+                    Major Incident
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => void handleToggleMajorIncident()}
+                    disabled={isTogglingMajorIncident}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 ${
+                      isMajorIncident ? 'bg-red-600 focus:ring-red-500' : 'bg-gray-200 focus:ring-gray-400'
+                    }`}
+                    title={isMajorIncident ? 'Unflag major incident' : 'Flag as major incident'}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow ${
+                      isMajorIncident ? 'translate-x-6' : 'translate-x-1'
+                    }`} />
+                  </button>
+                </div>
+                {isMajorIncident && (
+                  <div className="space-y-2">
+                    <textarea
+                      value={majorIncidentNotes}
+                      onChange={e => setMajorIncidentNotes(e.target.value)}
+                      placeholder="Describe impact, affected systems, stakeholders..."
+                      rows={3}
+                      className="w-full px-3 py-2 border border-red-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleSaveMajorNotes()}
+                      disabled={isSavingMajorNotes}
+                      className="px-3 py-1.5 bg-red-600 text-white rounded-md text-sm hover:bg-red-700 disabled:opacity-50 flex items-center gap-1.5"
+                    >
+                      <ExclamationTriangleIcon className="h-3.5 w-3.5" />
+                      {isSavingMajorNotes ? 'Saving…' : 'Save & Broadcast Notes'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Status Update */}
             <form onSubmit={handleStatusUpdate} className="space-y-3">
               <h3 className="text-sm font-medium text-gray-700">Update Status</h3>
@@ -943,7 +1053,7 @@ export default function TicketDetailPage(): JSX.Element {
                   <option value="New">New</option>
                   <option value="Assigned">Assigned</option>
                   <option value="InProgress">In Progress</option>
-                  <option value="Pending">Pending</option>
+                  <option value="On Hold">On Hold</option>
                   <option value="Resolved">Resolved</option>
                   <option value="Closed">Closed</option>
                 </select>

@@ -2,7 +2,7 @@ import * as schema from './schema';
 import { db } from '../db';
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
-import type { NewCategory, NewUser, NewEmployee, NewTicket, NewCaller, NewSLAPolicy, NewDepartment, NewGuestUser, NewServiceRequest } from './schema';
+import type { NewCategory, NewUser, NewEmployee, NewTicket, NewCaller, NewSLAPolicy, NewDepartment, NewGuestUser, NewServiceRequest, NewAsset, NewAssetHistory } from './schema';
 import type { NewTicketStatusHistory } from './schema';
 import { calculatePriority, calculateSLADueDates } from '@/lib/sla';
 
@@ -1230,6 +1230,773 @@ After setup, download and store your **backup codes** in a safe place (e.g. a pa
   }
 
   // ========================================
+  // ASSETS
+  // ========================================
+
+  console.log('Inserting assets...');
+
+  // Fetch user IDs by email (avoids hardcoding serial IDs)
+  const assetUsers = await db
+    .select({ id: schema.users.id, email: schema.users.email })
+    .from(schema.users);
+  const userIdByEmail = Object.fromEntries(assetUsers.map(u => [u.email, u.id]));
+
+  const assetAdminId = userIdByEmail['admin@company.com'];
+  const assetTl1Id   = userIdByEmail['teamlead1@company.com'];
+  const assetAg1Id   = userIdByEmail['agent1@company.com'];
+  const assetEmp1Id  = userIdByEmail['employee1@company.com'];
+  const assetEmp2Id  = userIdByEmail['employee2@company.com'];
+  const assetEmp3Id  = userIdByEmail['employee3@company.com'];
+  const assetEmp4Id  = userIdByEmail['employee4@company.com'];
+  const assetEmp5Id  = userIdByEmail['employee5@company.com'];
+
+  const assetsData: NewAsset[] = [
+    // --- Servers ---
+    {
+      assetTag: 'AST-0001',
+      name: 'Primary Application Server',
+      type: 'Hardware',
+      make: 'Dell',
+      model: 'PowerEdge R750',
+      serialNumber: 'DELLR750-SN001',
+      status: 'Active',
+      location: 'Server Room A',
+      purchaseDate: new Date('2023-01-15'),
+      warrantyExpiry: new Date('2026-01-15'),
+      cost: '8499.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0002',
+      name: 'Database Server',
+      type: 'Hardware',
+      make: 'Dell',
+      model: 'PowerEdge R650xs',
+      serialNumber: 'DELLR650-SN002',
+      status: 'Active',
+      location: 'Server Room A',
+      purchaseDate: new Date('2023-01-15'),
+      warrantyExpiry: new Date('2026-01-15'),
+      cost: '6299.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0003',
+      name: 'Backup Server',
+      type: 'Hardware',
+      make: 'HPE',
+      model: 'ProLiant DL380 Gen10',
+      serialNumber: 'HPE380-SN003',
+      status: 'Active',
+      location: 'Server Room B',
+      purchaseDate: new Date('2022-06-10'),
+      warrantyExpiry: new Date('2025-06-10'),
+      cost: '7100.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0004',
+      name: 'Dev/Test Server',
+      type: 'Hardware',
+      make: 'HPE',
+      model: 'ProLiant DL360 Gen10',
+      serialNumber: 'HPE360-SN004',
+      status: 'In Repair',
+      location: 'Server Room B',
+      purchaseDate: new Date('2021-03-20'),
+      warrantyExpiry: new Date('2024-03-20'),
+      cost: '5200.00',
+      assignedUserId: null
+    },
+    // --- Network: Routers & Switches ---
+    {
+      assetTag: 'AST-0005',
+      name: 'Core Network Router',
+      type: 'Hardware',
+      make: 'Cisco',
+      model: 'ISR 4451-X',
+      serialNumber: 'CISCO4451-SN005',
+      status: 'Active',
+      location: 'Network Closet L1',
+      purchaseDate: new Date('2022-09-01'),
+      warrantyExpiry: new Date('2025-09-01'),
+      cost: '3499.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0006',
+      name: 'Distribution Switch',
+      type: 'Hardware',
+      make: 'Cisco',
+      model: 'Catalyst 9300-48P',
+      serialNumber: 'CAT9300-SN006',
+      status: 'Active',
+      location: 'Network Closet L1',
+      purchaseDate: new Date('2022-09-01'),
+      warrantyExpiry: new Date('2025-09-01'),
+      cost: '4200.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0007',
+      name: 'Access Switch — Floor 2',
+      type: 'Hardware',
+      make: 'Cisco',
+      model: 'Catalyst 2960X-48FPS',
+      serialNumber: 'CAT2960-SN007',
+      status: 'Active',
+      location: 'Network Closet L2',
+      purchaseDate: new Date('2021-11-05'),
+      warrantyExpiry: new Date('2024-11-05'),
+      cost: '1850.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0008',
+      name: 'Access Switch — Floor 3 (Retired)',
+      type: 'Hardware',
+      make: 'Cisco',
+      model: 'Catalyst 2960X-24PS',
+      serialNumber: 'CAT2960-SN008',
+      status: 'Retired',
+      location: 'Storage Room',
+      purchaseDate: new Date('2019-04-12'),
+      warrantyExpiry: new Date('2022-04-12'),
+      cost: '1500.00',
+      assignedUserId: null
+    },
+    // --- Wireless Access Points ---
+    {
+      assetTag: 'AST-0009',
+      name: 'WAP — Conference Room A',
+      type: 'Hardware',
+      make: 'Ubiquiti',
+      model: 'UniFi AP-Pro',
+      serialNumber: 'UBNT-AP-SN009',
+      status: 'Active',
+      location: 'Conference Room A',
+      purchaseDate: new Date('2023-03-10'),
+      warrantyExpiry: new Date('2026-03-10'),
+      cost: '349.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0010',
+      name: 'WAP — Open Office Floor 2',
+      type: 'Hardware',
+      make: 'Ubiquiti',
+      model: 'UniFi AP-Pro',
+      serialNumber: 'UBNT-AP-SN010',
+      status: 'Active',
+      location: 'Floor 2 - Open Office',
+      purchaseDate: new Date('2023-03-10'),
+      warrantyExpiry: new Date('2026-03-10'),
+      cost: '349.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0011',
+      name: 'WAP — Break Room',
+      type: 'Hardware',
+      make: 'Ubiquiti',
+      model: 'UniFi AP-AC-Lite',
+      serialNumber: 'UBNT-AC-SN011',
+      status: 'In Repair',
+      location: 'Break Room',
+      purchaseDate: new Date('2021-07-22'),
+      warrantyExpiry: new Date('2024-07-22'),
+      cost: '189.00',
+      assignedUserId: null
+    },
+    // --- Printers ---
+    {
+      assetTag: 'AST-0012',
+      name: 'Laser Printer — Floor 2',
+      type: 'Hardware',
+      make: 'HP',
+      model: 'LaserJet Enterprise M507dn',
+      serialNumber: 'HPLJ-SN012',
+      status: 'Active',
+      location: 'Floor 2 - Print Station',
+      purchaseDate: new Date('2022-05-18'),
+      warrantyExpiry: new Date('2025-05-18'),
+      cost: '699.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0013',
+      name: 'Multifunction Printer — HR',
+      type: 'Hardware',
+      make: 'Brother',
+      model: 'MFC-L8900CDW',
+      serialNumber: 'BRMFC-SN013',
+      status: 'Active',
+      location: 'HR Office',
+      purchaseDate: new Date('2023-02-14'),
+      warrantyExpiry: new Date('2026-02-14'),
+      cost: '549.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0014',
+      name: 'Laser Printer — Finance (Retired)',
+      type: 'Hardware',
+      make: 'HP',
+      model: 'LaserJet Pro M404dn',
+      serialNumber: 'HPLJ-SN014',
+      status: 'Retired',
+      location: 'Storage Room',
+      purchaseDate: new Date('2018-09-03'),
+      warrantyExpiry: new Date('2021-09-03'),
+      cost: '399.00',
+      assignedUserId: null
+    },
+    // --- End-User Laptops ---
+    {
+      assetTag: 'AST-0015',
+      name: 'Laptop — John Smith',
+      type: 'Hardware',
+      make: 'Dell',
+      model: 'Latitude 5540',
+      serialNumber: 'DLAT5540-SN015',
+      status: 'Active',
+      location: 'Employee Desk',
+      purchaseDate: new Date('2023-08-01'),
+      warrantyExpiry: new Date('2026-08-01'),
+      cost: '1349.00',
+      assignedUserId: assetEmp1Id
+    },
+    {
+      assetTag: 'AST-0016',
+      name: 'Laptop — Jane Doe',
+      type: 'Hardware',
+      make: 'Apple',
+      model: 'MacBook Pro 14" M3',
+      serialNumber: 'MBP14M3-SN016',
+      status: 'Active',
+      location: 'Employee Desk',
+      purchaseDate: new Date('2024-01-20'),
+      warrantyExpiry: new Date('2027-01-20'),
+      cost: '1999.00',
+      assignedUserId: assetEmp2Id
+    },
+    {
+      assetTag: 'AST-0017',
+      name: 'Laptop — Bob Wilson',
+      type: 'Hardware',
+      make: 'Dell',
+      model: 'Latitude 5540',
+      serialNumber: 'DLAT5540-SN017',
+      status: 'Active',
+      location: 'Employee Desk',
+      purchaseDate: new Date('2023-08-01'),
+      warrantyExpiry: new Date('2026-08-01'),
+      cost: '1349.00',
+      assignedUserId: assetEmp3Id
+    },
+    {
+      assetTag: 'AST-0018',
+      name: 'Laptop — Sarah Johnson (Agent)',
+      type: 'Hardware',
+      make: 'Dell',
+      model: 'Latitude 7440',
+      serialNumber: 'DLAT7440-SN018',
+      status: 'Active',
+      location: 'Agent Workstation',
+      purchaseDate: new Date('2024-03-15'),
+      warrantyExpiry: new Date('2027-03-15'),
+      cost: '1699.00',
+      assignedUserId: assetAg1Id
+    },
+    {
+      assetTag: 'AST-0019',
+      name: 'Laptop — David Martinez (Team Lead)',
+      type: 'Hardware',
+      make: 'Apple',
+      model: 'MacBook Pro 16" M3 Pro',
+      serialNumber: 'MBP16M3-SN019',
+      status: 'Active',
+      location: 'Team Lead Office',
+      purchaseDate: new Date('2024-02-10'),
+      warrantyExpiry: new Date('2027-02-10'),
+      cost: '2499.00',
+      assignedUserId: assetTl1Id
+    },
+    // --- Desktops & Monitors ---
+    {
+      assetTag: 'AST-0020',
+      name: 'Desktop — Alice Brown',
+      type: 'Hardware',
+      make: 'Dell',
+      model: 'OptiPlex 7010',
+      serialNumber: 'DLOP7010-SN020',
+      status: 'Active',
+      location: 'Employee Desk',
+      purchaseDate: new Date('2022-11-30'),
+      warrantyExpiry: new Date('2025-11-30'),
+      cost: '999.00',
+      assignedUserId: assetEmp4Id
+    },
+    {
+      assetTag: 'AST-0021',
+      name: 'Monitor — Tom Harris',
+      type: 'Hardware',
+      make: 'Dell',
+      model: 'UltraSharp U2722D 27"',
+      serialNumber: 'DLU2722-SN021',
+      status: 'Active',
+      location: 'Employee Desk',
+      purchaseDate: new Date('2023-01-10'),
+      warrantyExpiry: new Date('2026-01-10'),
+      cost: '549.00',
+      assignedUserId: assetEmp5Id
+    },
+    {
+      assetTag: 'AST-0022',
+      name: 'Monitor — Spare (Pool)',
+      type: 'Hardware',
+      make: 'Dell',
+      model: 'UltraSharp U2422H 24"',
+      serialNumber: 'DLU2422-SN022',
+      status: 'Active',
+      location: 'IT Storage',
+      purchaseDate: new Date('2023-01-10'),
+      warrantyExpiry: new Date('2026-01-10'),
+      cost: '349.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0023',
+      name: 'Docking Station — John Smith',
+      type: 'Hardware',
+      make: 'Dell',
+      model: 'WD19TBS Thunderbolt',
+      serialNumber: 'DLWD19-SN023',
+      status: 'Active',
+      location: 'Employee Desk',
+      purchaseDate: new Date('2023-08-01'),
+      warrantyExpiry: new Date('2026-08-01'),
+      cost: '249.00',
+      assignedUserId: assetEmp1Id
+    },
+    // --- Peripherals ---
+    {
+      assetTag: 'AST-0024',
+      name: 'Headset — Jane Doe',
+      type: 'Hardware',
+      make: 'Jabra',
+      model: 'Evolve2 65',
+      serialNumber: 'JABRA65-SN024',
+      status: 'Active',
+      location: 'Employee Desk',
+      purchaseDate: new Date('2023-09-12'),
+      warrantyExpiry: new Date('2026-09-12'),
+      cost: '299.00',
+      assignedUserId: assetEmp2Id
+    },
+    {
+      assetTag: 'AST-0025',
+      name: 'Keyboard + Mouse Combo — Pool',
+      type: 'Hardware',
+      make: 'Logitech',
+      model: 'MX Keys Combo',
+      serialNumber: 'LGTMX-SN025',
+      status: 'Retired',
+      location: 'IT Storage',
+      purchaseDate: new Date('2021-05-05'),
+      warrantyExpiry: null,
+      cost: '189.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0026',
+      name: 'Headset — Pool (In Repair)',
+      type: 'Hardware',
+      make: 'Jabra',
+      model: 'Evolve2 40',
+      serialNumber: 'JABRA40-SN026',
+      status: 'In Repair',
+      location: 'IT Storage',
+      purchaseDate: new Date('2022-03-18'),
+      warrantyExpiry: new Date('2025-03-18'),
+      cost: '199.00',
+      assignedUserId: null
+    },
+    // --- Software Licenses ---
+    {
+      assetTag: 'AST-0027',
+      name: 'Microsoft 365 Business Premium (25-seat)',
+      type: 'Software',
+      make: 'Microsoft',
+      model: 'Microsoft 365 Business Premium',
+      serialNumber: 'M365-LIC-2024-001',
+      status: 'Active',
+      location: null,
+      purchaseDate: new Date('2024-01-01'),
+      warrantyExpiry: new Date('2025-01-01'),
+      cost: '3750.00',
+      assignedUserId: null
+    },
+    {
+      assetTag: 'AST-0028',
+      name: 'Adobe Creative Cloud (5-seat)',
+      type: 'Software',
+      make: 'Adobe',
+      model: 'Creative Cloud for Teams',
+      serialNumber: 'ACC-LIC-2024-001',
+      status: 'Active',
+      location: null,
+      purchaseDate: new Date('2024-04-01'),
+      warrantyExpiry: new Date('2025-04-01'),
+      cost: '2994.00',
+      assignedUserId: null
+    }
+  ];
+
+  await db.insert(schema.assets).values(assetsData).onConflictDoNothing();
+  console.log(`  ✓ ${assetsData.length} Assets created`);
+
+  // ========================================
+  // ASSET HISTORY
+  // ========================================
+
+  console.log('Inserting asset history...');
+
+  // Fetch inserted assets to map assetTag → id
+  const insertedAssets = await db.select().from(schema.assets);
+  const assetIdByTag = Object.fromEntries(insertedAssets.map(a => [a.assetTag, a.id]));
+
+  const assetHistoryData: NewAssetHistory[] = [
+    // Closed (completed) prior assignments
+    {
+      assetId: assetIdByTag['AST-0016'],
+      assignedToUserId: assetEmp3Id,
+      assignedByUserId: assetAdminId,
+      assignedAt: new Date('2023-06-01'),
+      returnedAt: new Date('2023-12-31'),
+      notes: 'Temporary loan to Bob Wilson while his laptop was in repair'
+    },
+    {
+      assetId: assetIdByTag['AST-0023'],
+      assignedToUserId: assetEmp3Id,
+      assignedByUserId: assetAdminId,
+      assignedAt: new Date('2022-05-01'),
+      returnedAt: new Date('2023-07-31'),
+      notes: 'Returned when Bob Wilson was reassigned to a different desk'
+    },
+    // Open (current) assignments
+    {
+      assetId: assetIdByTag['AST-0015'],
+      assignedToUserId: assetEmp1Id,
+      assignedByUserId: assetAdminId,
+      assignedAt: new Date('2023-08-05'),
+      returnedAt: null,
+      notes: 'Initial issue to John Smith — Engineering onboarding'
+    },
+    {
+      assetId: assetIdByTag['AST-0016'],
+      assignedToUserId: assetEmp2Id,
+      assignedByUserId: assetAdminId,
+      assignedAt: new Date('2024-01-25'),
+      returnedAt: null,
+      notes: 'MacBook issued to Jane Doe — Marketing hardware refresh'
+    },
+    {
+      assetId: assetIdByTag['AST-0017'],
+      assignedToUserId: assetEmp3Id,
+      assignedByUserId: assetAdminId,
+      assignedAt: new Date('2023-08-05'),
+      returnedAt: null,
+      notes: 'Initial issue to Bob Wilson — Sales onboarding'
+    },
+    {
+      assetId: assetIdByTag['AST-0018'],
+      assignedToUserId: assetAg1Id,
+      assignedByUserId: assetAdminId,
+      assignedAt: new Date('2024-03-20'),
+      returnedAt: null,
+      notes: 'Issued to agent Sarah Johnson — upgraded workstation'
+    },
+    {
+      assetId: assetIdByTag['AST-0019'],
+      assignedToUserId: assetTl1Id,
+      assignedByUserId: assetAdminId,
+      assignedAt: new Date('2024-02-15'),
+      returnedAt: null,
+      notes: 'Issued to team lead David Martinez — leadership hardware refresh'
+    },
+    {
+      assetId: assetIdByTag['AST-0020'],
+      assignedToUserId: assetEmp4Id,
+      assignedByUserId: assetAdminId,
+      assignedAt: new Date('2022-12-02'),
+      returnedAt: null,
+      notes: 'Desktop issued to Alice Brown — HR department standard build'
+    },
+    {
+      assetId: assetIdByTag['AST-0021'],
+      assignedToUserId: assetEmp5Id,
+      assignedByUserId: assetAdminId,
+      assignedAt: new Date('2023-01-15'),
+      returnedAt: null,
+      notes: 'Monitor issued to Tom Harris — Finance department'
+    },
+    {
+      assetId: assetIdByTag['AST-0023'],
+      assignedToUserId: assetEmp1Id,
+      assignedByUserId: assetAdminId,
+      assignedAt: new Date('2023-08-05'),
+      returnedAt: null,
+      notes: 'Docking station issued alongside laptop to John Smith'
+    },
+    {
+      assetId: assetIdByTag['AST-0024'],
+      assignedToUserId: assetEmp2Id,
+      assignedByUserId: assetAdminId,
+      assignedAt: new Date('2023-09-15'),
+      returnedAt: null,
+      notes: 'Headset issued to Jane Doe for remote meetings'
+    }
+  ];
+
+  await db.insert(schema.assetHistory).values(assetHistoryData).onConflictDoNothing();
+  console.log(`  ✓ ${assetHistoryData.length} Asset history entries created (9 open, 2 completed)`);
+
+  // ========================================
+  // RESPONSE TEMPLATES
+  // ========================================
+  console.log('Inserting response templates...');
+  const templates = [
+    {
+      title: 'Initial Response',
+      body: 'Thank you for reaching out. We have received your request and assigned it to our team. We will be in touch shortly with an update.',
+      category: 'General',
+      createdById: adminId,
+      isGlobal: true,
+    },
+    {
+      title: 'Request for More Information',
+      body: 'We need a bit more information to help resolve your issue. Could you please provide:\n\n1. Steps to reproduce the problem\n2. Any error messages you are seeing\n3. When the issue first occurred\n\nThank you for your patience.',
+      category: 'General',
+      createdById: adminId,
+      isGlobal: true,
+    },
+    {
+      title: 'Issue Resolved',
+      body: 'We are pleased to inform you that your issue has been resolved. The root cause was identified and a fix has been applied.\n\nPlease let us know if you experience any further problems.',
+      category: 'Resolution',
+      createdById: adminId,
+      isGlobal: true,
+    },
+    {
+      title: 'Password Reset Instructions',
+      body: 'To reset your password:\n\n1. Navigate to the company portal at https://portal.company.com\n2. Click "Forgot Password"\n3. Enter your company email address\n4. Follow the link sent to your email\n\nIf you continue to have issues, please reply to this ticket.',
+      category: 'Account',
+      createdById: adminId,
+      isGlobal: true,
+    },
+    {
+      title: 'VPN Troubleshooting',
+      body: 'Please try the following steps to resolve your VPN issue:\n\n1. Disconnect from VPN and reconnect\n2. Restart the VPN client application\n3. Check that your internet connection is working\n4. Restart your computer and try again\n\nIf the problem persists after these steps, please let us know.',
+      category: 'Network',
+      createdById: adminId,
+      isGlobal: true,
+    },
+    {
+      title: 'Escalation Notice',
+      body: 'This ticket has been escalated to a senior engineer due to the complexity or severity of the issue. We are actively working on a resolution and will provide an update within 2 hours.',
+      category: 'Escalation',
+      createdById: adminId,
+      isGlobal: true,
+    },
+  ];
+
+  await db.insert(schema.responseTemplates).values(templates).onConflictDoNothing();
+  console.log(`  ✓ ${templates.length} Response templates created`);
+
+  // ========================================
+  // CATALOG ITEMS
+  // ========================================
+  console.log('Inserting service catalog items...');
+  const catalogItems = [
+    {
+      title: 'New Laptop Request',
+      description: 'Request a new laptop for a new hire or replacement device.',
+      category: 'New Equipment' as const,
+      estimatedSLAHours: 120,
+      icon: '💻',
+      isActive: true,
+    },
+    {
+      title: 'Software License Request',
+      description: 'Request a license for approved business software (e.g., Adobe, Microsoft 365, Slack).',
+      category: 'Software Access' as const,
+      estimatedSLAHours: 48,
+      icon: '🔑',
+      isActive: true,
+    },
+    {
+      title: 'New User Account Setup',
+      description: 'Set up a full account for a new employee, including Active Directory, email, and core app access.',
+      category: 'Account Setup' as const,
+      estimatedSLAHours: 8,
+      icon: '👤',
+      isActive: true,
+    },
+    {
+      title: 'VPN Access Request',
+      description: 'Request VPN access for remote work. Requires manager approval.',
+      category: 'Software Access' as const,
+      estimatedSLAHours: 4,
+      icon: '🔒',
+      isActive: true,
+    },
+    {
+      title: 'Hardware Repair',
+      description: 'Submit a device for repair (laptop screen, keyboard, charger replacement, etc.).',
+      category: 'Hardware Repair' as const,
+      estimatedSLAHours: 168,
+      icon: '🔧',
+      isActive: true,
+    },
+    {
+      title: 'Mobile Device (Phone/Tablet)',
+      description: 'Request a company-issued mobile phone or tablet for business use.',
+      category: 'New Equipment' as const,
+      estimatedSLAHours: 168,
+      icon: '📱',
+      isActive: true,
+    },
+    {
+      title: 'Shared Mailbox Access',
+      description: 'Request access to a shared mailbox or distribution list.',
+      category: 'Account Setup' as const,
+      estimatedSLAHours: 8,
+      icon: '📬',
+      isActive: true,
+    },
+  ];
+
+  await db.insert(schema.catalogItems).values(catalogItems).onConflictDoNothing();
+  console.log(`  ✓ ${catalogItems.length} Catalog items created`);
+
+  // ========================================
+  // ESCALATION RULES
+  // ========================================
+  console.log('Inserting escalation rules...');
+  const escalationRules = [
+    {
+      name: 'P1 Unassigned after 15 minutes',
+      priority: 'P1' as const,
+      minutesBeforeBreach: 15,
+      action: 'notify_teamlead' as const,
+      isActive: true,
+    },
+    {
+      name: 'P1 SLA breach — notify admin',
+      priority: 'P1' as const,
+      minutesBeforeBreach: -240,
+      action: 'notify_admin' as const,
+      isActive: true,
+    },
+    {
+      name: 'P2 Unresolved after 24 hours',
+      priority: 'P2' as const,
+      minutesBeforeBreach: -1440,
+      action: 'notify_teamlead' as const,
+      isActive: true,
+    },
+    {
+      name: 'P3 Unresolved after 3 days',
+      priority: 'P3' as const,
+      minutesBeforeBreach: -4320,
+      action: 'reassign' as const,
+      isActive: true,
+    },
+  ];
+
+  await db.insert(schema.escalationRules).values(escalationRules).onConflictDoNothing();
+  console.log(`  ✓ ${escalationRules.length} Escalation rules created`);
+
+  // ========================================
+  // PROBLEMS
+  // ========================================
+  console.log('Inserting problems...');
+  const agentUserId = agent1Id;
+  const problems = await db.insert(schema.problems).values([
+    {
+      problemNumber: 'PRB-0001',
+      title: 'Intermittent VPN disconnections affecting remote workers',
+      description: 'Multiple employees have reported frequent VPN drops when connecting from home networks. The issue appears to be related to the VPN concentrator load balancer.',
+      status: 'Under Investigation' as const,
+      priority: 'P2' as const,
+      assignedAgentId: agentUserId,
+      createdById: adminId,
+      workaround: 'Use the secondary VPN endpoint (vpn2.company.com) as a workaround.',
+    },
+    {
+      problemNumber: 'PRB-0002',
+      title: 'Email delivery delays during peak hours',
+      description: 'Outbound email delivery is experiencing 15-30 minute delays between 9am-11am and 2pm-4pm. Root cause appears to be mail relay queue saturation.',
+      status: 'Known Error' as const,
+      priority: 'P3' as const,
+      assignedAgentId: agentUserId,
+      createdById: adminId,
+      rootCause: 'Mail relay queue becomes saturated due to bulk newsletter sends coinciding with peak business hours.',
+      workaround: 'Schedule bulk emails outside peak hours (before 8am or after 5pm).',
+    },
+  ]).returning({ id: schema.problems.id });
+  console.log(`  ✓ ${problems.length} Problems created`);
+
+  // ========================================
+  // CHANGES
+  // ========================================
+  console.log('Inserting change requests...');
+  const changes = await db.insert(schema.changes).values([
+    {
+      changeNumber: 'CHG-0001',
+      title: 'Upgrade VPN concentrator firmware to v7.4.2',
+      description: 'Upgrade the primary VPN concentrator from firmware v7.2.1 to v7.4.2 to resolve known stability issues and apply security patches.',
+      changeType: 'Normal' as const,
+      status: 'Approved' as const,
+      riskLevel: 'Medium' as const,
+      impactLevel: 'High' as const,
+      implementationPlan: '1. Schedule maintenance window (Saturday 2am-4am)\n2. Take snapshot of current config\n3. Upload v7.4.2 firmware\n4. Apply firmware and reboot\n5. Verify VPN connectivity for all regions\n6. Monitor for 30 minutes',
+      backoutPlan: 'Roll back to v7.2.1 using saved config snapshot. Estimated rollback time: 15 minutes.',
+      scheduledStart: new Date('2026-03-08T02:00:00Z'),
+      scheduledEnd: new Date('2026-03-08T04:00:00Z'),
+      createdById: adminId,
+      assignedAgentId: agentUserId,
+    },
+    {
+      changeNumber: 'CHG-0002',
+      title: 'Migrate file server FS01 to new hardware',
+      description: 'Migrate all shares from aging file server FS01 (2015 hardware) to new NAS appliance FS01-NEW. Includes Robocopy delta sync and DFS namespace update.',
+      changeType: 'Normal' as const,
+      status: 'Draft' as const,
+      riskLevel: 'High' as const,
+      impactLevel: 'High' as const,
+      implementationPlan: '1. Pre-stage data with Robocopy\n2. Schedule maintenance window\n3. Final Robocopy delta sync\n4. Update DFS namespace to point to FS01-NEW\n5. Verify access from sample workstations',
+      backoutPlan: 'Revert DFS namespace to FS01. All data preserved on both systems during transition.',
+      createdById: adminId,
+    },
+    {
+      changeNumber: 'CHG-0003',
+      title: 'Deploy new password complexity policy via Group Policy',
+      description: 'Update GPO to enforce minimum 12-character passwords with complexity requirements per updated security policy.',
+      changeType: 'Standard' as const,
+      status: 'Completed' as const,
+      riskLevel: 'Low' as const,
+      impactLevel: 'Medium' as const,
+      implementationPlan: '1. Update GPO in test OU\n2. Validate with test accounts\n3. Roll out to all OUs\n4. Force GP update',
+      backoutPlan: 'Revert GPO to previous version (saved as GPO-Password-v1).',
+      createdById: adminId,
+      completedAt: new Date('2026-02-15'),
+    },
+  ]).returning({ id: schema.changes.id });
+  console.log(`  ✓ ${changes.length} Change requests created`);
+
+  // ========================================
   // SUMMARY
   // ========================================
 
@@ -1247,6 +2014,8 @@ After setup, download and store your **backup codes** in a safe place (e.g. a pa
   console.log('    - P4 (Low): 8');
   console.log('  Ticket Status History: 17 entries');
   console.log('  KB Articles: 9 total (8 published, 1 draft)');
+  console.log('  Assets: 28 total (22 Active, 3 In Repair, 3 Retired)');
+  console.log('  Asset History: 11 entries (9 open, 2 completed)');
   console.log('\nDefault Credentials:');
   console.log('  Admin:     admin@company.com / admin123');
   console.log('  Team Lead: teamlead1@company.com / teamlead123');

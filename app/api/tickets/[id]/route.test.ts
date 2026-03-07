@@ -385,7 +385,7 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
       expect(data.error).toBe('invalid_status_transition');
     });
 
-    it('rejects invalid transition: Resolved -> Pending', async () => {
+    it('rejects invalid transition: Resolved -> On Hold', async () => {
       const adminSession = createSession('Admin', '100');
       vi.mocked(auth).mockResolvedValueOnce(adminSession as any);
 
@@ -417,12 +417,12 @@ describe('PATCH /api/tickets/[id] - Status Update Endpoint', () => {
       });
       vi.mocked(db.insert).mockReturnValue(mockInsert() as any);
 
-      const mockRequest = createMockRequest('1', { status: 'Pending' });
+      const mockRequest = createMockRequest('1', { status: 'On Hold' });
       const response = await PATCH(mockRequest as any, {
         params: Promise.resolve({ id: '1' })
       });
 
-      // Pending is now a valid status value but not a valid transition from Resolved
+      // On Hold is not a valid transition from Resolved
       expect(response.status).toBe(400);
       const data = await response.json();
       expect(data.error).toBe('invalid_status_transition');

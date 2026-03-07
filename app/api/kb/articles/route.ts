@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { knowledgeBaseArticles, categories, articleTags, kbTags } from '@/lib/db/schema';
-import { eq, and, or, ilike, sql, desc, inArray } from 'drizzle-orm';
+import { eq, and, or, ilike, sql, desc, inArray, lte } from 'drizzle-orm';
 import { requireAuth, requireRole, handleAPIError } from '@/lib/api-error';
 import { hasRole } from '@/lib/rbac';
 import { createKBArticleSchema } from '@/lib/validators';
@@ -17,6 +17,9 @@ export async function GET(req: NextRequest) {
     const q = searchParams.get('q');
     const categoryId = searchParams.get('categoryId');
     const published = searchParams.get('published');
+    const articleTypeParam = searchParams.get('articleType');
+    const reviewStatusParam = searchParams.get('reviewStatus');
+    const expiringParam = searchParams.get('expiring');
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
     const page = Math.max(parseInt(searchParams.get('page') || '1'), 1);
     const offset = (page - 1) * limit;
@@ -36,6 +39,25 @@ export async function GET(req: NextRequest) {
 
     if (categoryId) {
       conditions.push(eq(knowledgeBaseArticles.categoryId, parseInt(categoryId)));
+    }
+
+    if (articleTypeParam) {
+      conditions.push(eq(knowledgeBaseArticles.articleType, articleTypeParam as 'FAQ' | 'HowTo' | 'KnownError' | 'General'));
+    }
+
+    if (reviewStatusParam && isAgent) {
+      conditions.push(eq(knowledgeBaseArticles.reviewStatus, reviewStatusParam as 'Draft' | 'InReview' | 'Published'));
+    }
+
+    if (expiringParam === 'true' && isAgent) {
+      const thirtyDaysFromNow = new Date();
+      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+      conditions.push(
+        and(
+          sql`${knowledgeBaseArticles.expiresAt} IS NOT NULL`,
+          lte(knowledgeBaseArticles.expiresAt, thirtyDaysFromNow)
+        )!
+      );
     }
 
     if (q && q.trim()) {
@@ -69,6 +91,9 @@ export async function GET(req: NextRequest) {
         isPublished: knowledgeBaseArticles.isPublished,
         isAgentOnly: knowledgeBaseArticles.isAgentOnly,
         publishedAt: knowledgeBaseArticles.publishedAt,
+        articleType: knowledgeBaseArticles.articleType,
+        expiresAt: knowledgeBaseArticles.expiresAt,
+        reviewStatus: knowledgeBaseArticles.reviewStatus,
         createdAt: knowledgeBaseArticles.createdAt,
         updatedAt: knowledgeBaseArticles.updatedAt
       })
@@ -130,7 +155,10 @@ export async function POST(req: NextRequest) {
         isPublished: data.isPublished,
         isAgentOnly: data.isAgentOnly ?? false,
         publishedAt: data.isPublished ? new Date() : null,
-        createdBy: parseInt(session!.user!.id)
+        createdBy: parseInt(session!.user!.id),
+        articleType: data.articleType ?? 'General',
+        expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
+        reviewStatus: data.reviewStatus ?? 'Draft'
       })
       .returning();
 

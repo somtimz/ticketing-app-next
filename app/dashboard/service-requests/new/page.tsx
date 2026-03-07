@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 const CATEGORIES = ['New Equipment', 'Software Access', 'Account Setup', 'Hardware Repair', 'Other'] as const;
 const PRIORITIES = ['P1', 'P2', 'P3', 'P4'] as const;
@@ -12,16 +12,51 @@ const PRIORITY_LABELS: Record<string, string> = {
   P4: 'P4 — Low'
 };
 
+interface CatalogItem {
+  id: number;
+  title: string;
+  description: string;
+  category: typeof CATEGORIES[number];
+  estimatedSLAHours: number;
+  icon: string | null;
+}
+
 export default function NewServiceRequestPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const catalogItemId = searchParams.get('catalogItemId');
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [catalogItem, setCatalogItem] = useState<CatalogItem | null>(null);
   const [form, setForm] = useState({
     title: '',
     description: '',
     category: 'New Equipment' as typeof CATEGORIES[number],
     priority: 'P3' as typeof PRIORITIES[number]
   });
+
+  // Pre-populate from catalog item when catalogItemId is in the URL
+  useEffect(() => {
+    if (!catalogItemId) return;
+    const id = parseInt(catalogItemId, 10);
+    if (isNaN(id)) return;
+
+    fetch(`/api/catalog/${id}`)
+      .then(res => res.ok ? res.json() as Promise<{ catalogItem: CatalogItem }> : Promise.reject())
+      .then(data => {
+        const item = data.catalogItem;
+        setCatalogItem(item);
+        setForm(f => ({
+          ...f,
+          title: item.title,
+          category: item.category,
+        }));
+      })
+      .catch(() => {
+        // Silently ignore; just don't pre-populate
+      });
+  }, [catalogItemId]);
 
   function set<K extends keyof typeof form>(key: K, value: typeof form[K]) {
     setForm(f => ({ ...f, [key]: value }));
@@ -32,10 +67,16 @@ export default function NewServiceRequestPage() {
     setSubmitting(true);
     setError('');
     try {
+      const payload: Record<string, unknown> = { ...form };
+      if (catalogItemId) {
+        const id = parseInt(catalogItemId, 10);
+        if (!isNaN(id)) payload.catalogItemId = id;
+      }
+
       const res = await fetch('/api/service-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
+        body: JSON.stringify(payload)
       });
       if (!res.ok) {
         const data = await res.json() as { message?: string };
@@ -55,6 +96,19 @@ export default function NewServiceRequestPage() {
         <h1 className="text-2xl font-bold text-gray-900">New Service Request</h1>
         <p className="mt-1 text-sm text-gray-500">Submit a request for equipment, software access, or account setup.</p>
       </div>
+
+      {catalogItem && (
+        <div className="bg-violet-50 border border-violet-200 rounded-lg px-4 py-3 flex items-start gap-3">
+          {catalogItem.icon && (
+            <span className="text-xl leading-none mt-0.5 shrink-0">{catalogItem.icon}</span>
+          )}
+          <div>
+            <p className="text-sm font-semibold text-violet-900">{catalogItem.title}</p>
+            <p className="text-xs text-violet-700 mt-0.5">{catalogItem.description}</p>
+            <p className="text-xs text-violet-600 mt-1">Est. SLA: {catalogItem.estimatedSLAHours} hours</p>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-gray-200 p-6 space-y-5">
         {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{error}</p>}

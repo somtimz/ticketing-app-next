@@ -697,11 +697,143 @@ function getStatusColor(status: string): string {
     New: '#3b82f6',
     Assigned: '#8b5cf6',
     InProgress: '#f59e0b',
-    Pending: '#6b7280',
+    'On Hold': '#6b7280',
     Resolved: '#10b981',
     Closed: '#6b7280'
   };
   return colors[status] || '#667eea';
+}
+
+/**
+ * Send major incident stakeholder broadcast email
+ */
+export async function sendMajorIncidentEmail(
+  to: string,
+  ticketNumber: string,
+  title: string,
+  priority: string,
+  ticketId: number,
+  notes?: string
+): Promise<boolean> {
+  const ticketUrl = `${APP_URL}/dashboard/issue-logging/${ticketId}`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #dc2626 0%, #7f1d1d 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+          .major-badge { display: inline-block; background: #fef2f2; color: #dc2626; border: 2px solid #dc2626; padding: 6px 16px; border-radius: 4px; font-size: 14px; font-weight: bold; margin-bottom: 16px; }
+          .button { display: inline-block; background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 20px; }
+          .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 12px; }
+          .info-row { display: flex; padding: 12px 0; border-bottom: 1px solid #e5e7eb; }
+          .info-label { font-weight: bold; width: 140px; color: #374151; }
+          .info-value { color: #6b7280; }
+          .notes-box { background: #fff; border-left: 4px solid #dc2626; padding: 16px; margin-top: 16px; border-radius: 0 4px 4px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <p style="margin: 0; opacity: 0.9; font-size: 14px;">🚨 Major Incident Declared</p>
+            <h1 style="margin: 8px 0 0; font-size: 24px;">${ticketNumber}</h1>
+          </div>
+          <div class="content">
+            <div class="major-badge">⚠️ MAJOR INCIDENT</div>
+            <h2 style="margin-top: 0; color: #111827;">${title}</h2>
+            <div class="info-row">
+              <span class="info-label">Priority:</span>
+              <span class="info-value"><strong>${priority}</strong></span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Ticket:</span>
+              <span class="info-value">${ticketNumber}</span>
+            </div>
+            ${notes ? `<div class="notes-box"><strong>Incident Notes:</strong><br>${notes}</div>` : ''}
+            <p style="margin-top: 20px; color: #374151;">This incident has been flagged as a <strong>major incident</strong> and requires immediate attention. All stakeholders are being notified.</p>
+            <a href="${ticketUrl}" class="button">View Incident →</a>
+          </div>
+          <div class="footer">
+            <p>IT Help Desk | <a href="${APP_URL}">Portal</a></p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  return sendEmail(to, `🚨 Major Incident: ${ticketNumber} - ${title}`, html);
+}
+
+/**
+ * Send escalation notification email
+ */
+export async function sendEscalationEmail(
+  to: string,
+  ticketNumber: string,
+  title: string,
+  priority: string,
+  ticketId: number,
+  escalationRuleName: string,
+  minutesOverdue: number
+): Promise<boolean> {
+  const ticketUrl = `${APP_URL}/dashboard/issue-logging/${ticketId}`;
+  const overdueText = minutesOverdue >= 60
+    ? `${Math.floor(minutesOverdue / 60)} hour${Math.floor(minutesOverdue / 60) !== 1 ? 's' : ''}`
+    : `${minutesOverdue} minute${minutesOverdue !== 1 ? 's' : ''}`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #d97706 0%, #92400e 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+          .escalation-badge { display: inline-block; background: #fffbeb; color: #92400e; border: 2px solid #d97706; padding: 6px 16px; border-radius: 4px; font-size: 14px; font-weight: bold; margin-bottom: 16px; }
+          .button { display: inline-block; background: #d97706; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 20px; }
+          .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 12px; }
+          .info-row { display: flex; padding: 12px 0; border-bottom: 1px solid #e5e7eb; }
+          .info-label { font-weight: bold; width: 180px; color: #374151; }
+          .info-value { color: #6b7280; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <p style="margin: 0; opacity: 0.9; font-size: 14px;">⚡ SLA Escalation</p>
+            <h1 style="margin: 8px 0 0; font-size: 24px;">${ticketNumber}</h1>
+          </div>
+          <div class="content">
+            <div class="escalation-badge">⚡ ESCALATION: ${escalationRuleName}</div>
+            <h2 style="margin-top: 0; color: #111827;">${title}</h2>
+            <div class="info-row">
+              <span class="info-label">Priority:</span>
+              <span class="info-value"><strong>${priority}</strong></span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">SLA Overdue By:</span>
+              <span class="info-value" style="color: #dc2626; font-weight: bold;">${overdueText}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Escalation Rule:</span>
+              <span class="info-value">${escalationRuleName}</span>
+            </div>
+            <p style="margin-top: 20px; color: #374151;">This ticket has breached its SLA and requires immediate escalation. Please review and take action.</p>
+            <a href="${ticketUrl}" class="button">View Ticket →</a>
+          </div>
+          <div class="footer">
+            <p>IT Help Desk | <a href="${APP_URL}">Portal</a></p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  return sendEmail(to, `⚡ Escalation: ${ticketNumber} - ${title} (${priority})`, html);
 }
 
 /**

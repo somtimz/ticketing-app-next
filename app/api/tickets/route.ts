@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { tickets, callers, categories, calls, users, employees } from '@/lib/db/schema';
-import { eq, desc, or, and, sql } from 'drizzle-orm';
+import { eq, desc, or, and, sql, isNotNull, inArray } from 'drizzle-orm';
 import { createTicketSchema, type CreateTicketInput } from '@/lib/validators';
 import { calculatePriority, calculateSLADueDates } from '@/lib/sla';
 import { sendTicketCreatedEmail, sendTicketAssignedEmail } from '@/lib/email';
@@ -24,6 +24,8 @@ export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
     const limit = parseInt(searchParams.get('limit') || '50');
     const status = searchParams.get('status');
+    const slaRisk = searchParams.get('slaRisk'); // 'breach' | 'at-risk' | 'healthy'
+    const assignedAgentIdParam = searchParams.get('assignedAgentId');
 
     // Build WHERE clause based on user role and department
     const userId = parseInt(session.user.id);
@@ -36,38 +38,69 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    let whereConditions;
+    // Build base access conditions
+    let accessConditions;
 
     if (hasRole(session, 'TeamLead') || hasRole(session, 'Admin')) {
       // Team Leads and Admins can see all tickets
-      whereConditions = status ? eq(tickets.status, status as any) : sql`1=1`;
+      accessConditions = sql`1=1`;
     } else if (hasRole(session, 'Agent')) {
       // Agents can see all tickets (full visibility needed for assignment)
-      whereConditions = status ? eq(tickets.status, status as any) : sql`1=1`;
+      accessConditions = sql`1=1`;
     } else {
       // Employees see their own tickets + department tickets
       if (user?.departmentId) {
-        whereConditions = status
-          ? and(
-              or(
-                eq(tickets.createdBy, userId),
-                eq(tickets.departmentId, user.departmentId)
-              ),
-              eq(tickets.status, status as any)
-            )
-          : or(
-              eq(tickets.createdBy, userId),
-              eq(tickets.departmentId, user.departmentId)
-            );
+        accessConditions = or(
+          eq(tickets.createdBy, userId),
+          eq(tickets.departmentId, user.departmentId)
+        );
       } else {
         // No department assigned - only see own tickets
-        whereConditions = status
-          ? and(
-              eq(tickets.createdBy, userId),
-              eq(tickets.status, status as any)
-            )
-          : eq(tickets.createdBy, userId);
+        accessConditions = eq(tickets.createdBy, userId);
       }
+    }
+
+    // Combine all filter conditions
+    const filterConditions = [];
+
+    if (status) {
+      // Support comma-separated statuses e.g. "InProgress,Assigned,New"
+      const statusList = status.split(',').map(s => s.trim());
+      if (statusList.length === 1) {
+        filterConditions.push(eq(tickets.status, statusList[0] as any));
+      } else {
+        filterConditions.push(inArray(tickets.status, statusList as any[]));
+      }
+    }
+
+    if (assignedAgentIdParam) {
+      const agentId = parseInt(assignedAgentIdParam, 10);
+      if (!isNaN(agentId)) {
+        filterConditions.push(eq(tickets.assignedAgentId, agentId));
+      }
+    }
+
+    if (slaRisk) {
+      // Only filter tickets that have slaResolutionDue set
+      filterConditions.push(isNotNull(tickets.slaResolutionDue));
+      if (slaRisk === 'breach') {
+        // slaResolutionDue < now()
+        filterConditions.push(sql`${tickets.slaResolutionDue} < now()`);
+      } else if (slaRisk === 'at-risk') {
+        // slaResolutionDue BETWEEN now() AND now() + interval '2 hours'
+        filterConditions.push(sql`${tickets.slaResolutionDue} >= now()`);
+        filterConditions.push(sql`${tickets.slaResolutionDue} <= now() + interval '2 hours'`);
+      } else if (slaRisk === 'healthy') {
+        // slaResolutionDue > now() + interval '2 hours'
+        filterConditions.push(sql`${tickets.slaResolutionDue} > now() + interval '2 hours'`);
+      }
+    }
+
+    let whereConditions;
+    if (filterConditions.length === 0) {
+      whereConditions = accessConditions;
+    } else {
+      whereConditions = and(accessConditions, ...filterConditions);
     }
 
     const result = await db

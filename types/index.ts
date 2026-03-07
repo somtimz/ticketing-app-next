@@ -39,7 +39,7 @@ import type { Priority, Impact, Urgency } from '@/lib/sla';
 export type { Priority, Impact, Urgency };
 
 // Ticket status type (matches database enum)
-export type TicketStatus = 'New' | 'Assigned' | 'InProgress' | 'Pending' | 'Resolved' | 'Closed';
+export type TicketStatus = 'New' | 'Assigned' | 'InProgress' | 'On Hold' | 'Resolved' | 'Closed';
 
 // Form & Request types
 export interface CreateTicketRequest {

@@ -8,25 +8,34 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { tickets, users } from '@/lib/db/schema';
+import { tickets, users, escalationRules } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
-import { sendSLABreachEmail, sendSLAWarningEmail } from '@/lib/email';
+import { sendSLABreachEmail, sendSLAWarningEmail, sendEscalationEmail } from '@/lib/email';
 import { requireAuth } from '@/lib/api-error';
 import { auth } from '@/lib/auth';
 
+// Deduplicate breach notifications: only notify once per 4 hours per ticket
+const BREACH_NOTIFY_COOLDOWN_MS = 4 * 60 * 60 * 1000;
+
 /**
- * Verify cron secret to prevent unauthorized access
+ * Verify cron secret to prevent unauthorized access.
+ * Fails closed: if CRON_SECRET is not set in non-dev environments the
+ * request is rejected to avoid the "Bearer undefined" bypass.
  */
 function verifyCronSecret(req: NextRequest): boolean {
-  const authHeader = req.headers.get('authorization');
-  const expectedAuth = `Bearer ${process.env.CRON_SECRET}`;
-
-  // In development, allow access without secret
+  // In development, allow unauthenticated access when no secret is configured
   if (process.env.NODE_ENV === 'development' && !process.env.CRON_SECRET) {
     return true;
   }
 
-  return authHeader === expectedAuth;
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    // CRON_SECRET is required in non-dev environments; fail closed
+    return false;
+  }
+
+  const authHeader = req.headers.get('authorization');
+  return authHeader === `Bearer ${cronSecret}`;
 }
 
 /**
@@ -62,15 +71,8 @@ function shouldSendWarning(createdAt: Date, dueDate: Date, now: Date): boolean {
 }
 
 // GET /api/cron/sla-monitor - Check for SLA breaches and warnings
-export async function GET(req: NextRequest) {
-  // Verify cron secret
-  if (!verifyCronSecret(req)) {
-    return NextResponse.json(
-      { error: 'Unauthorized', message: 'Invalid cron secret' },
-      { status: 401 }
-    );
-  }
-
+/** Core SLA-monitoring logic shared by both the cron GET and the manual POST trigger. */
+async function runSlaMonitor(): Promise<NextResponse> {
   const now = new Date();
   const results = {
     breaches: { firstResponse: 0, resolution: 0 },
@@ -80,11 +82,12 @@ export async function GET(req: NextRequest) {
   };
 
   try {
-    // Find all active tickets (not Resolved or Closed)
+    // Find all active tickets (not Resolved, Closed, or On Hold — hold pauses SLA)
     const activeTickets = await db.query.tickets.findMany({
       where: and(
         sql`${tickets.status} != 'Resolved'`,
-        sql`${tickets.status} != 'Closed'`
+        sql`${tickets.status} != 'Closed'`,
+        sql`${tickets.status} != 'On Hold'`
       ),
       with: {
         assignedAgent: true,
@@ -99,13 +102,21 @@ export async function GET(req: NextRequest) {
       const assignedAgentEmail = (ticket as any).assignedAgent?.email as string | undefined;
       const createdByEmail = (ticket as any).createdBy?.email as string | undefined;
 
+      // Determine if breach notification cooldown has elapsed
+      const lastBreachNotified = ticket.slaBreachNotifiedAt
+        ? new Date(ticket.slaBreachNotifiedAt)
+        : null;
+      const breachNotifyCooledDown =
+        !lastBreachNotified ||
+        now.getTime() - lastBreachNotified.getTime() > BREACH_NOTIFY_COOLDOWN_MS;
+
       // Check First Response SLA
       if (ticket.slaFirstResponseDue) {
         const firstResponseDue = new Date(ticket.slaFirstResponseDue);
         const isBreached = now > firstResponseDue;
         const shouldWarn = shouldSendWarning(ticket.createdAt, firstResponseDue, now);
 
-        if (isBreached) {
+        if (isBreached && breachNotifyCooledDown) {
           // Notify assigned agent and team leads
           const recipients: string[] = [];
           if (assignedAgentEmail) recipients.push(assignedAgentEmail);
@@ -134,8 +145,11 @@ export async function GET(req: NextRequest) {
             results.emailsSent++;
           }
 
+          // Record that we sent breach notifications
+          await db.update(tickets).set({ slaBreachNotifiedAt: now } as any).where(eq(tickets.id, ticket.id));
+
           results.breaches.firstResponse++;
-        } else if (shouldWarn && assignedAgentEmail) {
+        } else if (!isBreached && shouldWarn && assignedAgentEmail) {
           const timeRemaining = getTimeRemaining(firstResponseDue, now);
           await sendSLAWarningEmail(
             assignedAgentEmail,
@@ -157,7 +171,7 @@ export async function GET(req: NextRequest) {
         const isBreached = now > resolutionDue;
         const shouldWarn = shouldSendWarning(ticket.createdAt, resolutionDue, now);
 
-        if (isBreached) {
+        if (isBreached && breachNotifyCooledDown) {
           // Notify assigned agent, creator, team leads and admins
           const recipients: string[] = [];
           if (assignedAgentEmail) recipients.push(assignedAgentEmail);
@@ -186,8 +200,11 @@ export async function GET(req: NextRequest) {
             results.emailsSent++;
           }
 
+          // Record that we sent breach notifications
+          await db.update(tickets).set({ slaBreachNotifiedAt: now } as any).where(eq(tickets.id, ticket.id));
+
           results.breaches.resolution++;
-        } else if (shouldWarn && assignedAgentEmail) {
+        } else if (!isBreached && shouldWarn && assignedAgentEmail) {
           const timeRemaining = getTimeRemaining(resolutionDue, now);
           await sendSLAWarningEmail(
             assignedAgentEmail,
@@ -204,9 +221,67 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // ── Escalation Rule Evaluation ───────────────────────────────────────────
+    // Load active escalation rules and evaluate each against breached tickets
+    const activeRules = await db
+      .select()
+      .from(escalationRules)
+      .where(eq(escalationRules.isActive, true));
+
+    let escalationsFired = 0;
+
+    if (activeRules.length > 0) {
+      // Re-query breached active tickets (status check already applied above, re-use activeTickets)
+      for (const ticket of activeTickets) {
+        if (!ticket.slaResolutionDue) continue;
+        const resolutionDue = new Date(ticket.slaResolutionDue);
+        const msOverdue = now.getTime() - resolutionDue.getTime();
+        if (msOverdue <= 0) continue; // Not yet breached
+
+        const minutesOverdue = Math.floor(msOverdue / (1000 * 60));
+
+        for (const rule of activeRules) {
+          if (rule.priority !== ticket.priority) continue;
+
+          // minutesBeforeBreach > 0 means "X min before breach" — handled by warning logic above
+          // minutesBeforeBreach <= 0 means "X min after breach" — we trigger here
+          const ruleThreshold = -(rule.minutesBeforeBreach); // flip sign: stored as positive = after breach
+          if (minutesOverdue < ruleThreshold) continue;
+
+          if (rule.action === 'notify_teamlead' || rule.action === 'notify_admin') {
+            const targetRole = rule.action === 'notify_teamlead' ? 'TeamLead' : 'Admin';
+            const targets = await db.query.users.findMany({
+              where: eq(users.role, targetRole)
+            });
+            for (const target of targets) {
+              if (target.email) {
+                await sendEscalationEmail(
+                  target.email,
+                  ticket.ticketNumber,
+                  ticket.title,
+                  ticket.priority,
+                  ticket.id,
+                  rule.name,
+                  minutesOverdue
+                );
+                results.emailsSent++;
+                escalationsFired++;
+              }
+            }
+          } else if (rule.action === 'reassign' && rule.reassignToAgentId) {
+            await db.update(tickets)
+              .set({ assignedAgentId: rule.reassignToAgentId, updatedAt: now } as any)
+              .where(eq(tickets.id, ticket.id));
+            escalationsFired++;
+          }
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       timestamp: now.toISOString(),
+      escalationsFired,
       ...results
     });
   } catch (error) {
@@ -218,8 +293,20 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/cron/sla-monitor - Manual trigger for testing (requires auth)
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
+  // Verify cron secret
+  if (!verifyCronSecret(req)) {
+    return NextResponse.json(
+      { error: 'Unauthorized', message: 'Invalid cron secret' },
+      { status: 401 }
+    );
+  }
+
+  return runSlaMonitor();
+}
+
+// POST /api/cron/sla-monitor - Manual trigger (TeamLead+ only; no cron secret needed)
+export async function POST(_req: NextRequest) {
   const session = await auth();
   requireAuth(session);
 
@@ -232,6 +319,5 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Call the GET handler
-  return GET(req);
+  return runSlaMonitor();
 }

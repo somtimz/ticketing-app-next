@@ -30,6 +30,21 @@ export function calculateSLADueDates(priority: Priority, createdAt: Date): {
   };
 }
 
+/**
+ * Adjust an SLA due date forward by the total minutes the ticket was on hold.
+ * Call this when a ticket resumes from 'On Hold' status.
+ */
+export function adjustSLAForHoldTime(dueDate: Date, additionalHoldMinutes: number): Date {
+  return new Date(dueDate.getTime() + additionalHoldMinutes * 60 * 1000);
+}
+
+/**
+ * Calculate how many minutes a ticket has been on hold since slaHeldAt.
+ */
+export function calcCurrentHoldMinutes(slaHeldAt: Date, now: Date = new Date()): number {
+  return Math.floor((now.getTime() - slaHeldAt.getTime()) / (1000 * 60));
+}
+
 export function isSLABreached(dueDate: Date, now: Date = new Date()): boolean {
   return now > dueDate;
 }
