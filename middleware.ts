@@ -3,16 +3,34 @@ import { NextResponse } from 'next/server';
 
 export default authEdge((req) => {
   const isLoggedIn = !!req.auth;
-  const isOnAuthPage = req.nextUrl.pathname.startsWith('/login');
-  const isOnDashboard = req.nextUrl.pathname.startsWith('/dashboard');
+  const role = req.auth?.user?.role as string | undefined;
+  const path = req.nextUrl.pathname;
 
-  // Redirect to login if not authenticated
-  if (!isLoggedIn && isOnDashboard) {
+  const isOnAuthPage = path.startsWith('/login');
+  const isOnDashboard = path.startsWith('/dashboard');
+  const isOnPortal = path.startsWith('/portal');
+  const isAcceptInvite = path.startsWith('/portal/accept-invite');
+
+  // Allow unauthenticated access to accept-invite page
+  if (isAcceptInvite) return NextResponse.next();
+
+  // Redirect to login if not authenticated and trying to access protected routes
+  if (!isLoggedIn && (isOnDashboard || isOnPortal)) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
-  // Redirect to dashboard if already logged in
-  if (isLoggedIn && isOnAuthPage) {
+  // Client role: block dashboard access, send to portal
+  if (isLoggedIn && role === 'Client' && isOnDashboard) {
+    return NextResponse.redirect(new URL('/portal', req.url));
+  }
+
+  // Client role: redirect from login page to portal
+  if (isLoggedIn && role === 'Client' && isOnAuthPage) {
+    return NextResponse.redirect(new URL('/portal', req.url));
+  }
+
+  // Internal roles: redirect from login to dashboard
+  if (isLoggedIn && role !== 'Client' && isOnAuthPage) {
     return NextResponse.redirect(new URL('/dashboard/issue-logging', req.url));
   }
 
