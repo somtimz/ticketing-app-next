@@ -10,6 +10,7 @@ import {
   LinkIcon,
   TrashIcon
 } from '@heroicons/react/24/outline';
+import SendInviteButton from './SendInviteButton';
 
 interface Customer {
   id: number;
@@ -268,12 +269,15 @@ export default function CustomerDetailPage(): JSX.Element {
             </span>
           )}
         </div>
-        <Link
-          href="/dashboard/admin/customers"
-          className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
-        >
-          ← Back
-        </Link>
+        <div className="flex items-center gap-2">
+          <SendInviteButton customerId={customer.id} defaultEmail={customer.email ?? ''} />
+          <Link
+            href="/dashboard/admin/customers"
+            className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+          >
+            ← Back
+          </Link>
+        </div>
       </div>
 
       {message && (
