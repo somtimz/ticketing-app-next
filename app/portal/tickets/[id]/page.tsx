@@ -15,7 +15,7 @@ export default async function PortalTicketDetailPage({ params }: { params: Promi
   if (!ticket.length) notFound();
 
   // Client can only see their own tickets
-  if (ticket[0].requesterId !== userId) redirect('/portal/tickets');
+  if (ticket[0].createdBy !== userId) redirect('/portal/tickets');
 
   const ticketComments = await db
     .select({ id: comments.id, body: comments.body, createdAt: comments.createdAt, authorName: users.fullName, isInternal: comments.isInternal })

@@ -11,7 +11,7 @@ export default async function PortalDashboard() {
   const myTickets = await db
     .select()
     .from(tickets)
-    .where(eq(tickets.requesterId, userId))
+    .where(eq(tickets.createdBy, userId))
     .orderBy(desc(tickets.createdAt))
     .limit(5);
 

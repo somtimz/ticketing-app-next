@@ -82,6 +82,14 @@ export default defineConfig({
         storageState: `${authDir}/admin.json`,
       },
     },
+
+    // ── Portal ───────────────────────────────────────────────
+    {
+      name: 'portal',
+      testMatch: /e2e\/portal\/portal\.spec\.ts/,
+      dependencies: ['setup'],
+      use: { ...devices['Desktop Chrome'] },
+    },
   ],
 
   ...(process.env.BASE_URL ? {} : {
