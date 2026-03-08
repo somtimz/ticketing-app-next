@@ -1,12 +1,14 @@
 import type { Session } from 'next-auth';
 
-export type UserRole = 'Employee' | 'Agent' | 'TeamLead' | 'Admin';
+export type UserRole = 'Employee' | 'Agent' | 'TeamLead' | 'Admin' | 'Client';
 
 /**
  * Role hierarchy for permission inheritance
  * Higher number = more privileges
+ * Client is -1: does NOT inherit Employee permissions
  */
 export const ROLE_HIERARCHY: Record<UserRole, number> = {
+  Client: -1,
   Employee: 0,
   Agent: 1,
   TeamLead: 2,
@@ -111,4 +113,14 @@ export function canViewAnalytics(session: Session | null): boolean {
  */
 export function canManageSLAPolicies(session: Session | null): boolean {
   return hasRole(session, 'Admin');
+}
+
+/**
+ * Check if user can access the client portal
+ * All authenticated roles can access it (Client + internal roles)
+ */
+export function canAccessPortal(session: Session | null): boolean {
+  if (!session?.user) return false;
+  const role = session.user.role as UserRole;
+  return role in ROLE_HIERARCHY;
 }

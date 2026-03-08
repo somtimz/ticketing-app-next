@@ -22,13 +22,14 @@ export const users = pgTable('users', {
   email: text('email').notNull().unique(),
   passwordHash: text('password_hash'), // Nullable for SAML users
   fullName: text('full_name').notNull(),
-  role: text('role', { enum: ['Employee', 'Agent', 'TeamLead', 'Admin'] }).notNull().default('Employee'),
+  role: text('role', { enum: ['Employee', 'Agent', 'TeamLead', 'Admin', 'Client'] }).notNull().default('Employee'),
   samlIdentityId: text('saml_identity_id'), // For SSO accounts
   departmentId: integer('department_id').references(() => departments.id, {
     onDelete: 'set null'
   }),
   location: text('location'),
   isActive: boolean('is_active').notNull().default(true),
+  customerId: integer('customer_id').references(() => customers.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at')
     .notNull()
     .default(sql`now()`),
@@ -441,6 +442,20 @@ export const customers = pgTable('customers', {
   createdAt: timestamp('created_at').notNull().default(sql`now()`),
   updatedAt: timestamp('updated_at').notNull().default(sql`now()`)
 });
+
+// Client portal invite tokens
+export const clientInvites = pgTable('client_invites', {
+  id: serial('id').primaryKey(),
+  email: text('email').notNull(),
+  token: text('token').notNull().unique(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  expiresAt: timestamp('expires_at').notNull(),
+  claimedAt: timestamp('claimed_at'),
+  createdAt: timestamp('created_at').notNull().default(sql`now()`)
+});
+
+export type ClientInvite = typeof clientInvites.$inferSelect;
+export type NewClientInvite = typeof clientInvites.$inferInsert;
 
 // Asset ↔ Ticket/ServiceRequest links
 export const assetLinks = pgTable('asset_links', {
