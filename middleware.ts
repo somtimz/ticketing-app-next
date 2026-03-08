@@ -19,13 +19,8 @@ export default authEdge((req) => {
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
-  // Client role: block dashboard access, send to portal
-  if (isLoggedIn && role === 'Client' && isOnDashboard) {
-    return NextResponse.redirect(new URL('/portal', req.url));
-  }
-
-  // Client role: redirect from login page to portal
-  if (isLoggedIn && role === 'Client' && isOnAuthPage) {
+  // Client role: always redirect to portal (from dashboard or login)
+  if (isLoggedIn && role === 'Client' && (isOnDashboard || isOnAuthPage)) {
     return NextResponse.redirect(new URL('/portal', req.url));
   }
 

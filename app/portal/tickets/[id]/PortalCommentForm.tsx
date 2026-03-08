@@ -12,16 +12,19 @@ export default function PortalCommentForm({ ticketId }: { ticketId: number }) {
     e.preventDefault();
     if (!body.trim()) return;
     setSubmitting(true);
-
-    await fetch(`/api/tickets/${ticketId}/comments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body, isInternal: false })
-    });
-
-    setBody('');
-    setSubmitting(false);
-    router.refresh();
+    try {
+      const res = await fetch(`/api/tickets/${ticketId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body, isInternal: false })
+      });
+      if (res.ok) {
+        setBody('');
+        router.refresh();
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (

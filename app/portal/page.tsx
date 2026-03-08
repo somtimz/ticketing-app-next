@@ -15,8 +15,8 @@ export default async function PortalDashboard() {
     .orderBy(desc(tickets.createdAt))
     .limit(5);
 
-  const openCount = myTickets.filter(t => t.status !== 'Resolved' && t.status !== 'Closed').length;
   const resolvedCount = myTickets.filter(t => t.status === 'Resolved' || t.status === 'Closed').length;
+  const openCount = myTickets.length - resolvedCount;
 
   return (
     <div className="space-y-6">

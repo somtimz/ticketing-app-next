@@ -12,12 +12,15 @@ export default function PortalKBPage() {
   const [articles, setArticles] = useState<Article[]>([]);
 
   useEffect(() => {
+    const controller = new AbortController();
     const url = debouncedQuery
       ? `/api/kb/search?q=${encodeURIComponent(debouncedQuery)}`
       : '/api/kb/articles';
-    fetch(url)
+    fetch(url, { signal: controller.signal })
       .then(r => r.json())
-      .then((data: { articles?: Article[]; results?: Article[] }) => setArticles(data.articles ?? data.results ?? []));
+      .then((data: { articles?: Article[]; results?: Article[] }) => setArticles(data.articles ?? data.results ?? []))
+      .catch(err => { if (err.name !== 'AbortError') console.error('KB fetch failed:', err); });
+    return () => controller.abort();
   }, [debouncedQuery]);
 
   return (
