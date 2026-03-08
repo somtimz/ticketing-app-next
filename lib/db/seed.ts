@@ -1223,7 +1223,7 @@ After setup, download and store your **backup codes** in a safe place (e.g. a pa
       priority: 'P3',
       requesterId: employee1.id,
       customerId: acme?.id ?? null
-    }).onConflictDoNothing().returning();
+    }).onConflictDoNothing().returning({ id: schema.serviceRequests.id });
     if (sr) {
       console.log('  ✓ 1 Service Request created (REQ-0001), linked to Acme Corp');
     }
@@ -1945,8 +1945,8 @@ After setup, download and store your **backup codes** in a safe place (e.g. a pa
       rootCause: 'Mail relay queue becomes saturated due to bulk newsletter sends coinciding with peak business hours.',
       workaround: 'Schedule bulk emails outside peak hours (before 8am or after 5pm).',
     },
-  ]).onConflictDoNothing().returning({ id: schema.problems.id });
-  console.log(`  ✓ ${problems.length} Problems seeded`);
+  ]).onConflictDoNothing();
+  console.log('  ✓ 2 Problems seeded');
 
   // ========================================
   // CHANGES
@@ -1993,8 +1993,25 @@ After setup, download and store your **backup codes** in a safe place (e.g. a pa
       createdById: adminId,
       completedAt: new Date('2026-02-15'),
     },
-  ]).onConflictDoNothing().returning({ id: schema.changes.id });
-  console.log(`  ✓ ${changes.length} Change requests seeded`);
+  ]).onConflictDoNothing();
+  console.log('  ✓ 3 Change requests seeded');
+
+  // ========================================
+  // CLIENT USER (for portal testing)
+  // ========================================
+
+  const [firstCustomer] = await db.select({ id: schema.customers.id }).from(schema.customers).limit(1);
+  if (firstCustomer) {
+    await db.insert(schema.users).values({
+      fullName: 'Acme Portal User',
+      email: 'client@acme.example',
+      passwordHash: await bcrypt.hash('client123', 10),
+      role: 'Client',
+      customerId: firstCustomer.id,
+      isActive: true
+    }).onConflictDoNothing();
+    console.log('  ✓ Client user seeded (client@acme.example / client123)');
+  }
 
   // ========================================
   // SUMMARY

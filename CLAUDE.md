@@ -141,6 +141,7 @@ docs/
 | Team Lead | teamlead1@company.com | teamlead123 |
 | Agent | agent1@company.com | agent123 |
 | Employee | employee1@company.com | employee123 |
+| Client | client@acme.example | client123 |
 
 ## Default Settings
 
