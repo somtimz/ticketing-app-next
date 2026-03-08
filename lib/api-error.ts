@@ -83,3 +83,17 @@ export function requireAnyRole(session: Session | null, roles: UserRole[]): void
     );
   }
 }
+
+/**
+ * Block Client role from accessing internal API routes
+ * Returns a 403 response if the user is a Client, otherwise null
+ */
+export function blockClientRole(session: Session | null): NextResponse | null {
+  if (session?.user?.role === 'Client') {
+    return NextResponse.json(
+      { error: 'FORBIDDEN', message: 'Client accounts cannot access this resource' },
+      { status: 403 }
+    );
+  }
+  return null;
+}

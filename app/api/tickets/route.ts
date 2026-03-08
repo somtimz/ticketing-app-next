@@ -7,6 +7,7 @@ import { createTicketSchema, type CreateTicketInput } from '@/lib/validators';
 import { calculatePriority, calculateSLADueDates } from '@/lib/sla';
 import { sendTicketCreatedEmail, sendTicketAssignedEmail } from '@/lib/email';
 import { hasRole } from '@/lib/rbac';
+import { blockClientRole } from '@/lib/api-error';
 import type { TicketWithRelations, ApiErrorResponse } from '@/types';
 
 // GET /api/tickets - List tickets
@@ -19,6 +20,9 @@ export async function GET(req: NextRequest) {
       { status: 401 }
     );
   }
+
+  const clientBlock = blockClientRole(session);
+  if (clientBlock) return clientBlock;
 
   try {
     const searchParams = req.nextUrl.searchParams;
