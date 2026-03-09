@@ -9,8 +9,7 @@ test('employee can submit a service request', async ({ page, request }) => {
   expect(res.ok()).toBeTruthy();
   const { serviceRequest } = await res.json() as { serviceRequest: { id: number } };
 
-  await page.goto(`/dashboard/service-requests/${serviceRequest.id}`);
-  await page.waitForLoadState('networkidle');
+  await page.goto(`/dashboard/service-requests/${serviceRequest.id}`, { waitUntil: 'networkidle' });
   await expect(page.getByText('Need new keyboard E2E')).toBeVisible({ timeout: 15000 });
   await expect(page.getByText('Submitted').first()).toBeVisible();
 });

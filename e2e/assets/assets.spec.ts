@@ -9,8 +9,7 @@ test('can register an asset and view it in the list', async ({ page, request }) 
   expect(res.ok()).toBeTruthy();
   const { asset } = await res.json() as { asset: { id: number } };
 
-  await page.goto(`/dashboard/assets/${asset.id}`);
-  await page.waitForLoadState('networkidle');
+  await page.goto(`/dashboard/assets/${asset.id}`, { waitUntil: 'networkidle' });
   await expect(page.getByText('Test Laptop E2E')).toBeVisible({ timeout: 15000 });
   await expect(page.getByText('Active')).toBeVisible();
 });

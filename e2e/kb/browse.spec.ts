@@ -3,8 +3,7 @@ import { test, expect } from '../fixtures';
 
 test.describe('Knowledge Base – browse (Employee role)', () => {
   test('article list loads with published articles', async ({ page }) => {
-    await page.goto('/dashboard/kb');
-    await page.waitForLoadState('networkidle');
+    await page.goto('/dashboard/kb', { waitUntil: 'networkidle' });
     await expect(page.locator('main h1')).toContainText('Knowledge Base');
     // At least one article from the seed should be visible
     const articles = page.locator('a[href*="/dashboard/kb/"]');

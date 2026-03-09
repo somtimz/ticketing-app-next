@@ -17,7 +17,7 @@ test.describe('Agent – ticket flows', () => {
     await page.waitForURL(/\/dashboard\/issue-logging\/\d+/);
 
     // Get ticket ID from URL
-    const ticketId = page.url().split('/').pop();
+    const ticketId = page.url().split('/').pop()!;
 
     // Find any agent via the agents API
     const agentsRes = await page.request.get('/api/agents');
@@ -27,8 +27,7 @@ test.describe('Agent – ticket flows', () => {
 
     // Assign via API directly (bypasses controlled-select timing issues in dev mode)
     const res = await page.request.put(`/api/tickets/${ticketId}/assign`, {
-      headers: { 'Content-Type': 'application/json' },
-      data: JSON.stringify({ agentId: targetAgent.id })
+      data: { agentId: targetAgent.id }
     });
     expect(res.ok()).toBeTruthy();
 
@@ -43,12 +42,11 @@ test.describe('Agent – ticket flows', () => {
     await firstLink.click();
     await page.waitForURL(/\/dashboard\/issue-logging\/\d+/);
 
-    const ticketId = page.url().split('/').pop();
+    const ticketId = page.url().split('/').pop()!;
 
     // → InProgress via API (bypasses controlled-select timing issues in dev mode)
     const statusRes = await page.request.put(`/api/tickets/${ticketId}/status`, {
-      headers: { 'Content-Type': 'application/json' },
-      data: JSON.stringify({ status: 'InProgress' })
+      data: { status: 'InProgress' }
     });
     expect(statusRes.ok()).toBeTruthy();
 
@@ -57,8 +55,7 @@ test.describe('Agent – ticket flows', () => {
 
     // → Resolved via API (resolve textarea is a controlled input; state may lag in dev mode)
     const resolveRes = await page.request.post(`/api/tickets/${ticketId}/resolve`, {
-      headers: { 'Content-Type': 'application/json' },
-      data: JSON.stringify({ resolution: 'Fixed by restarting the service.' })
+      data: { resolution: 'Fixed by restarting the service.' }
     });
     expect(resolveRes.ok()).toBeTruthy();
 

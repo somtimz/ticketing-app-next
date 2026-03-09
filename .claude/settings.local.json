@@ -120,7 +120,12 @@
       "mcp__claude_ai_Vercel__get_deployment",
       "Bash(python3:*)",
       "Bash(gh run:*)",
-      "mcp__plugin_playwright_playwright__browser_install"
+      "mcp__plugin_playwright_playwright__browser_install",
+      "Bash(npm run:*)",
+      "Bash(PGPASSWORD=npg_PZWiO3XfaER6 psql:*)",
+      "Bash(chmod +x:*)",
+      "Bash(cp:*)",
+      "Bash(npx claude-plugins:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

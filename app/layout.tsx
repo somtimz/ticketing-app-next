@@ -7,7 +7,7 @@ import { Providers } from '@/components/providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Issue Logging System',
+  title: 'Compass',
   description: 'Ticket management system for issue logging and tracking'
 };
 

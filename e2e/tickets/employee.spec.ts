@@ -16,8 +16,7 @@ test.describe('Employee – ticket flows', () => {
     expect(res.ok()).toBeTruthy();
 
     // Navigate to the employee's own-tickets view to confirm it appears
-    await page.goto('/dashboard/my-tickets');
-    await page.waitForLoadState('networkidle');
+    await page.goto('/dashboard/my-tickets', { waitUntil: 'networkidle' });
     // Use .first() — prior test runs may leave multiple tickets with the same title
     await expect(page.locator('text=E2E printer not working').first()).toBeVisible({ timeout: 15000 });
   });
