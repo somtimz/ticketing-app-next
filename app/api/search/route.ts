@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
       .limit(limit);
 
     // ── Agent-only entity types ────────────────────────────────────────────────
-    let assetRows: { id: number; number: string; title: string; type: string; status: string }[] = [];
+    let assetRows: { id: number; number: string; title: string; assetType: string; status: string }[] = [];
     let problemRows: { id: number; number: string; title: string; status: string }[] = [];
     let changeRows: { id: number; number: string; title: string; status: string; changeType: string }[] = [];
 
@@ -127,7 +127,7 @@ export async function GET(req: NextRequest) {
         id: a.id,
         number: a.assetTag,
         title: a.name,
-        type: a.type,
+        assetType: a.type,
         status: a.status,
       }));
 
