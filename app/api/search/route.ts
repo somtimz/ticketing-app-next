@@ -32,8 +32,7 @@ export async function GET(req: NextRequest) {
     requireAuth(session);
 
     const userId = parseInt(session!.user.id, 10);
-    const userRole = (session!.user as { role?: string }).role ?? 'Employee';
-    const isAgent = hasRole(userRole, 'Agent');
+    const isAgent = hasRole(session, 'Agent');
 
     const { searchParams } = new URL(req.url);
     const q = searchParams.get('q')?.trim() ?? '';
